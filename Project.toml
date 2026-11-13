@@ -1,0 +1,17 @@
+name = "AirfoilSimulation"
+uuid = "14aad9fd-6970-4777-a6c1-930456ae79e3"
+version = "0.1.0"
+authors = ["Yu-Higu"]
+
+[deps]
+OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+
+[compat]
+julia = "~1.13.0"
+OffsetArrays = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

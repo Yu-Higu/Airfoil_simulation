@@ -1,0 +1,27 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.13.0"
+manifest_format = "2.1"
+project_hash = "49837c153436c1ccc954f5cd249ca160449f8e40"
+
+[[deps.AirfoilSimulation]]
+deps = ["OffsetArrays"]
+path = "."
+uuid = "14aad9fd-6970-4777-a6c1-930456ae79e3"
+version = "0.1.0"
+
+[[deps.OffsetArrays]]
+git-tree-sha1 = "750d0f2b5aac238d50dfee5f7a44fae3175a3305"
+registries = "General"
+uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+version = "1.18.0"
+
+    [deps.OffsetArrays.extensions]
+    OffsetArraysAdaptExt = "Adapt"
+
+    [deps.OffsetArrays.weakdeps]
+    Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
+
+[registries.General]
+url = "https://github.com/JuliaRegistries/General.git"
+uuid = "23338594-aafe-5451-b93e-139f81909106"

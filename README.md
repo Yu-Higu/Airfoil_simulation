@@ -6,10 +6,10 @@
 
 - `src/`：Juliaパッケージ本体
 - `test/`：パッケージのテスト
-- `project/01_Porting_code_from_fortran/`：パッケージへ未統合の旧シミュレーションコードと入力データ
+- `project/01_Porting_code_from_fortran/`：パッケージ本体へ未統合のシミュレーションコードと入力データ。既存の回帰テストをルートのテストから実行
 - `run.jl`：現在のパッケージ実行入口
 
-旧シミュレーションはパッケージ本体およびGitHub Actionsのテスト対象にはまだ統合されていません．旧コードの入力データ `setting.dat` と `clark_y.dat` は保持しています．
+旧シミュレーションはパッケージ本体にはまだ統合されていません．一方、既存の回帰テストはルートの `test/runtests.jl` から実行され、GitHub Actions の `Pkg.test()` でも検証されます．旧コードの入力データ `setting.dat` と `clark_y.dat` は保持しています．
 
 ## 環境
 
@@ -26,7 +26,7 @@ GitHub Actionsでも同じJulia 1.13系と `Pkg.test()` を使います．
 
 ## 実行とテスト
 
-ルートの `run.jl` は現時点ではモデル・ソルバーが未設定であることを表示します．GitHub Actionsは `Pkg.test()` を実行し、パッケージの読み込みだけを確認します．旧ソルバーの回帰テストは別途実行できます：
+ルートの `run.jl` は現時点ではモデル・ソルバーが未設定であることを表示します．`Pkg.test()` はパッケージの読み込みと旧ソルバーの回帰テストを実行します．回帰テストだけを単独実行する場合：
 
 ```sh
 julia --project=. project/01_Porting_code_from_fortran/test_3ME_experment_improved.jl

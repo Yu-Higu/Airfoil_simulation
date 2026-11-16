@@ -1,0 +1,11 @@
+      COMMON /MESH/ X(-1:LX+4),XX(-1:LX+4),DX(-1:LX+4),DXX(-1:LX+4)     
+     &             ,Y(-1:LY+4),YY(-1:LY+4),DY(-1:LY+4),DYY(-1:LY+4)     
+      COMMON /COE2/ PDX(0:LX+2),PDXX(0:LX+2),DX2(0:LX+2),DXX2(0:LX+2)   
+     &             ,PDX2(0:LX+2),PDX3(0:LX+2),PDXX3(0:LX+2)             
+     &             ,PDY(0:LY+2),PDYY(0:LY+2),DY2(0:LY+2),DYY2(0:LY+2)   
+     &             ,PDY2(0:LY+2),PDY3(0:LY+2),PDYY3(0:LY+2)             
+C
+      COMMON /CONS/ D_N(0:JG),D_E(0:IG),D_W(0:IG),D_S(0:JG)             
+     &             ,PDPHI(0:IG,0:JG)                                    
+      COMMON /IDXY/ IDX(0:IG,0:JG),IDY(0:IG,0:JG)                       
+      COMMON /GAMM/ GAMMA(0:IG,0:JG,2)                                  

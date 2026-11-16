@@ -1,0 +1,14 @@
+name = "AirfoilCFD"
+uuid = "8f21a6f4-1e34-4a1f-a4df-3c7b2f6d8a10"
+authors = ["Fortran-to-Julia port"]
+version = "0.1.0"
+
+[deps]
+OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

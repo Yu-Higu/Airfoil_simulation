@@ -1,4 +1,9 @@
-include(joinpath(@__DIR__, "src", "3ME_experiment_improved.jl"))
+const BENCHMARK_SOURCE = abspath(get(ENV, "BENCHMARK_SOURCE",
+                                     joinpath(@__DIR__, "src",
+                                              "3ME_experiment_improved.jl")))
+isfile(BENCHMARK_SOURCE) ||
+    throw(ArgumentError("benchmark source file does not exist: $BENCHMARK_SOURCE"))
+include(BENCHMARK_SOURCE)
 
 const SOURCE_DIR = joinpath(@__DIR__, "..", "01_Porting_code_from_fortran")
 const SETTING_SOURCE = joinpath(SOURCE_DIR, "setting.dat")

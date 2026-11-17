@@ -1,5 +1,12 @@
 using BenchmarkTools
 using Dates
+
+if get(ENV, "BENCHMARK_CHILD", "") != "1"
+    include("compare.jl")
+    run_comparison()
+    exit()
+end
+
 include("common.jl")
 
 seconds = parse(Float64, get(ENV, "BENCHMARK_SECONDS", "5"))
@@ -89,6 +96,7 @@ try
     open(result_path, "w") do io
         println(io, "Airfoil simulation benchmark using project/01 setting.dat")
         println(io, "Date: ", now())
+        println(io, "Source: ", BENCHMARK_SOURCE)
         println(io, "Julia: ", VERSION, "; CPU: ", Sys.CPU_NAME,
                 "; threads: ", Threads.nthreads())
         println(io, "Conditions: IG=", p.IG, ", JG=", p.JG, ", RE=", p.RE,
@@ -101,6 +109,11 @@ try
             println(io, "\n", name)
             show(io, MIME("text/plain"), trial)
             println(io)
+        end
+        println(io, "\n=== Machine-readable timing metrics ===")
+        for (name, trial) in results
+            println(io, "METRIC\tbenchmark\t", name, "\t",
+                    BenchmarkTools.median(trial).time)
         end
         println(io, "\nMeasured SOR iteration counts in the full simulation:")
         println(io, "First step: ", first_ncount)
@@ -125,6 +138,12 @@ try
         end
         println(io, "Sequential timing run counts: min=", minimum(sequential_timing.ncounts),
                 ", max=", maximum(sequential_timing.ncounts))
+        println(io, "\n=== Machine-readable sequential metrics ===")
+        println(io, "METRIC\tsequential\tComplete run\t", sequential_timing.elapsed)
+        for (name, ns) in sequential_timing.timings
+            println(io, "METRIC\tsequential\t", name, "\t", ns)
+        end
+        println(io, "METRIC\tsequential\tOther\t", sequential_timing.other)
     end
 
     println("\n=== Median stage time / memory (sorted by time) ===")

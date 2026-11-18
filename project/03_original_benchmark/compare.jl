@@ -4,7 +4,7 @@ const DEFAULT_CANDIDATE =
     joinpath(BENCHMARK_DIR, "src", "3ME_experiment_improved.jl")
 const DEFAULT_BASELINE =
     joinpath(BENCHMARK_DIR, "..", "01_Porting_code_from_fortran",
-             "3ME_experiment_improved.jl")
+        "3ME_experiment_improved.jl")
 const DEFAULT_BASELINE_REPORT =
     joinpath(BENCHMARK_DIR, "results", "baseline", "benchmark.txt")
 const NS_PER_UNIT = Dict("ns" => 1.0, "μs" => 1e3, "ms" => 1e6, "s" => 1e9)
@@ -21,7 +21,7 @@ function parse_source_args(args)
         if arg in ("--source", "--baseline", "--baseline-source", "--name")
             index < length(args) ||
                 throw(ArgumentError("$arg requires a value"))
-            value = args[index + 1]
+            value = args[index+1]
             if arg == "--source"
                 candidate = value
             elseif arg == "--name"
@@ -34,7 +34,7 @@ function parse_source_args(args)
             candidate = split(arg, "="; limit=2)[2]
             index += 1
         elseif startswith(arg, "--baseline=") ||
-               startswith(arg, "--baseline-source=")
+            startswith(arg, "--baseline-source=")
             baseline = split(arg, "="; limit=2)[2]
             index += 1
         elseif startswith(arg, "--name=")
@@ -60,15 +60,15 @@ function parse_source_args(args)
     record_baseline && name !== nothing &&
         throw(ArgumentError("--name cannot be used when recording the baseline"))
     return (candidate=abspath(candidate), baseline=abspath(baseline),
-            name=name, record_baseline=record_baseline,
-            replace_baseline=replace_baseline)
+        name=name, record_baseline=record_baseline,
+        replace_baseline=replace_baseline)
 end
 
 function run_child(source, report_path)
     cmd = `$(Base.julia_cmd()) --project=$(BENCHMARK_DIR) $(BENCHMARK_SCRIPT)`
     output = read(setenv(cmd, Dict("BENCHMARK_CHILD" => "1",
-                                   "BENCHMARK_SOURCE" => source,
-                                   "BENCHMARK_RESULT_PATH" => report_path)), String)
+        "BENCHMARK_SOURCE" => source,
+        "BENCHMARK_RESULT_PATH" => report_path)), String)
     report_match = match(r"Saved results to: (.+)", output)
     report_match === nothing &&
         error("benchmark process did not report its results file for $source")
@@ -91,7 +91,7 @@ function read_metrics(path)
         if startswith(line, "METRIC\t")
             fields = split(line, '\t'; limit=4)
             length(fields) == 4 && add_metric!(metrics, fields[2], fields[3],
-                                               parse(Float64, fields[4]))
+                parse(Float64, fields[4]))
             continue
         end
         if startswith(line, "BenchmarkTools.Trial:")
@@ -99,14 +99,14 @@ function read_metrics(path)
             pending_name = ""
         elseif active_trial !== nothing
             median_match = match(r"Time\s+\(median\):\s*([0-9.]+)\s*(ns|μs|ms|s)",
-                                 line)
+                line)
             single_match = match(r"Single result which took ([0-9.]+) (ns|μs|ms|s)",
-                                 line)
+                line)
             time_match = median_match === nothing ? single_match : median_match
             if time_match !== nothing
                 add_metric!(metrics, "benchmark", active_trial,
-                            parse(Float64, time_match.captures[1]) *
-                            NS_PER_UNIT[time_match.captures[2]])
+                    parse(Float64, time_match.captures[1]) *
+                        NS_PER_UNIT[time_match.captures[2]])
                 active_trial = nothing
             end
         end
@@ -116,7 +116,7 @@ function read_metrics(path)
         sequential_match = match(r"Complete run:\s*([0-9.]+)\s*s", line)
         if sequential_match !== nothing
             add_metric!(metrics, "sequential", "Complete run",
-                        parse(Float64, sequential_match.captures[1]) * 1e9)
+                parse(Float64, sequential_match.captures[1]) * 1e9)
         end
     end
     return metrics
@@ -127,7 +127,7 @@ function report_metadata(path)
     julia = findfirst(line -> startswith(line, "Julia: "), lines)
     conditions = findfirst(line -> startswith(line, "Conditions: "), lines)
     return (julia=julia === nothing ? "not recorded" : lines[julia],
-            conditions=conditions === nothing ? "not recorded" : lines[conditions])
+        conditions=conditions === nothing ? "not recorded" : lines[conditions])
 end
 
 function old_benchmark_reports(result_dir, baseline_report)
@@ -136,7 +136,7 @@ function old_benchmark_reports(result_dir, baseline_report)
         for (dir, _, files) in walkdir(result_dir)
             for file in files
                 is_report = file == "benchmark.txt" ||
-                            (startswith(file, "benchmark-") && endswith(file, ".txt"))
+                    (startswith(file, "benchmark-") && endswith(file, ".txt"))
                 if is_report
                     path = abspath(joinpath(dir, file))
                     path == baseline_report || push!(paths, path)
@@ -161,10 +161,10 @@ function print_comparison(io, title, source_report, candidate_metrics)
     println(io, metadata.julia)
     println(io, metadata.conditions)
     println(io, rpad("Measurement", 54), lpad("Candidate", 14),
-            lpad("Compared", 14), lpad("Change", 12))
+        lpad("Compared", 14), lpad("Change", 12))
 
     shared = sort(collect(intersect(keys(candidate_metrics), keys(metrics)));
-                  by=metric_label)
+        by=metric_label)
     if isempty(shared)
         println(io, "No shared timing metrics are available.")
         return
@@ -174,9 +174,9 @@ function print_comparison(io, title, source_report, candidate_metrics)
         compared = metrics[key]
         delta = 100 * (candidate / compared - 1)
         println(io, rpad(metric_label(key), 54),
-                lpad(string(round(candidate / 1e6; digits=3), " ms"), 14),
-                lpad(string(round(compared / 1e6; digits=3), " ms"), 14),
-                lpad(string(round(delta; digits=1), "%"), 12))
+            lpad(string(round(candidate / 1e6; digits=3), " ms"), 14),
+            lpad(string(round(compared / 1e6; digits=3), " ms"), 14),
+            lpad(string(round(delta; digits=1), "%"), 12))
     end
 end
 
@@ -196,8 +196,8 @@ function run_comparison()
         temporary_dir = mktempdir(result_dir)
         try
             temporary_report = joinpath(temporary_dir, "benchmark.txt")
-            run_child(paths.baseline, temporary_report)
-            mv(temporary_report, baseline_report; force=paths.replace_baseline)
+            saved_path = run_child(paths.baseline, temporary_report)
+            mv(saved_path, baseline_report; force=paths.replace_baseline)
         finally
             rm(temporary_dir; recursive=true, force=true)
         end
@@ -225,10 +225,11 @@ function run_comparison()
     temporary_dir = mktempdir(result_dir)
     try
         candidate_report = run_child(paths.candidate,
-                                     joinpath(temporary_dir, "benchmark.txt"))
+            joinpath(temporary_dir, "benchmark.txt"))
         candidate_metrics = read_metrics(candidate_report)
-        mv(temporary_dir, run_dir)
+        mkpath(run_dir)
         final_report = joinpath(run_dir, "benchmark.txt")
+        mv(candidate_report, final_report)
         comparison_path = joinpath(run_dir, "comparison.txt")
         open(comparison_path, "w") do io
             println(io, "Airfoil simulation benchmark comparison")
@@ -239,11 +240,11 @@ function run_comparison()
             println(io, "Candidate report: ", final_report)
             println(io, "\nPositive change percentages indicate the candidate is slower.")
             print_comparison(io, "Candidate versus saved baseline", baseline_report,
-                             candidate_metrics)
+                candidate_metrics)
             for report in history
                 print_comparison(io, "Candidate versus historical run: " *
-                                 relpath(report, result_dir), report,
-                                 candidate_metrics)
+                    relpath(report, result_dir), report,
+                    candidate_metrics)
             end
         end
         println("Saved comparison report: ", comparison_path)

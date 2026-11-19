@@ -52,12 +52,19 @@ julia --project=. benchmark.jl --record-baseline \
 `--baseline` も `--baseline-source` と同じ指定として使用できます。基準レポートの保存先は常に `results/baseline/benchmark.txt` です。
 
 ## 3. 候補コードを名前付きで計測する
+Thread 数を指定する場合，
+
+```sh
+JULIA_NUM_THREADS=16 taskset -c 0-15
+```
+
+を文頭に追加
 
 基準レポートを作成した後、候補コードを指定して計測します。
 
 ```sh
 julia --project=. benchmark.jl \
-  --source /path/to/3ME_experiment_improved.jl \
+  --source Airfoil_simulation/src/AirfoilSimulation.jl \
   --name cache-layout-v2
 ```
 
@@ -82,7 +89,9 @@ results/
 ## 4. ベンチマーク用ディレクトリ以外から実行する
 
 `--project` にベンチマーク用プロジェクトを、続けて `benchmark.jl` にその絶対パスを指定します。候補コードも絶対パスで指定すれば、現在の作業ディレクトリに依存せず実行できます。
-
+```sh
+JULIA_NUM_THREADS=16 taskset -c 0-15 ~/.juliaup/bin/julia --project=project/03_original_benchmark project/03_original_benchmark/benchmark.jl --source src/AirfoilSimulation.jl --name HOGEHOGE
+```
 ```sh
 julia --project=/path/to/Airfoil_simulation/project/03_original_benchmark \
   /path/to/Airfoil_simulation/project/03_original_benchmark/benchmark.jl \

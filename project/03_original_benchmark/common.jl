@@ -5,6 +5,15 @@ isfile(BENCHMARK_SOURCE) ||
     throw(ArgumentError("benchmark source file does not exist: $BENCHMARK_SOURCE"))
 include(BENCHMARK_SOURCE)
 
+# If the source defined a module named AirfoilSimulation, import its exported symbols into Main
+if isdefined(@__MODULE__, :AirfoilSimulation) && isa(getfield(@__MODULE__, :AirfoilSimulation), Module)
+    for sym in names(AirfoilSimulation)
+        if sym !== :AirfoilSimulation
+            @eval using .AirfoilSimulation: $sym
+        end
+    end
+end
+
 const SOURCE_DIR = joinpath(@__DIR__, "..", "01_Porting_code_from_fortran")
 const SETTING_SOURCE = joinpath(SOURCE_DIR, "setting.dat")
 const WING_SOURCE = joinpath(SOURCE_DIR, "clark_y.dat")

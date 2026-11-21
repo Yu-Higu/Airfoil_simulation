@@ -89,9 +89,18 @@ results/
 ## 4. ベンチマーク用ディレクトリ以外から実行する
 
 `--project` にベンチマーク用プロジェクトを、続けて `benchmark.jl` にその絶対パスを指定します。候補コードも絶対パスで指定すれば、現在の作業ディレクトリに依存せず実行できます。
+
 ```sh
-JULIA_NUM_THREADS=16 taskset -c 0-15 ~/.juliaup/bin/julia --project=project/03_original_benchmark project/03_original_benchmark/benchmark.jl --source src/AirfoilSimulation.jl --name HOGEHOGE
+cd /home/yuya_higuchi/dev/Airfoil_simulation
+
+JULIA_NUM_THREADS=16 BENCHMARK_SECONDS=5 taskset -c 0-15 \
+  /home/yuya_higuchi/.juliaup/bin/julia \
+  --project=project/03_original_benchmark \
+  project/03_original_benchmark/benchmark.jl \
+  --source src/AirfoilSimulation.jl \
+  --name HOGEHOGE
 ```
+
 ```sh
 julia --project=/path/to/Airfoil_simulation/project/03_original_benchmark \
   /path/to/Airfoil_simulation/project/03_original_benchmark/benchmark.jl \

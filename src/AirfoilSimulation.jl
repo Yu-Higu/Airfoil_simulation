@@ -1,23 +1,24 @@
 # ======================================================================
 # Module AirfoilSimulation
-# Two-dimensional airfoil flow simulation (High-Performance Standard Array Version)
+# Two-dimensional airfoil flow simulation (Standard Array + LoopVectorization)
 # ======================================================================
 
 module AirfoilSimulation
 
 using Printf
 using Polyester
+using LoopVectorization
 
 export read_setting, read_wing, allocate_sim, calbeta!, fs_predictor!, fs0!, fs1!,
-       sor_row, fs2!, write_puv, ubc!, output, seedout, seedin!, main, run_simulation,
-       TS_HEADER, ts_line
+    sor_row, fs2!, write_puv, ubc!, output, seedout, seedin!, main, run_simulation,
+    TS_HEADER, ts_line
 
 const PI_F = 3.141592653589793
 
-# Helper for 1-based standard Array allocation
+# 1始まり標準配列の確保ヘルパー
 std_oa(::Type{T}, dims...) where {T} = zeros(T, dims...)
 
-# Fortran Ew.d edit descriptor
+# Fortran Ew.d 編集記述子
 const EFMT = Dict(d => Printf.Format("%." * string(d - 1) * "e") for d in 1:12)
 
 function fE(x::Real, w::Int, d::Int)
@@ -51,8 +52,8 @@ const TS_HEADER = "    NN     NUM    TIME    DIV         CFL         AVE.U      
 
 ts_line(num, time, div, cfl, usum, cl, cd, ncount) =
     @sprintf("%6d%8d%10.4f", num, num, time) *
-    fE(div, 12, 4) * fE(cfl, 12, 4) * fE(usum, 12, 4) *
-    @sprintf("%9.4f%9.4f%8d", cl, cd, ncount)
+        fE(div, 12, 4) * fE(cfl, 12, 4) * fE(usum, 12, 4) *
+        @sprintf("%9.4f%9.4f%8d", cl, cd, ncount)
 
 # ----------------------------------------------------------------------
 # setting.dat 読み込み
@@ -77,13 +78,12 @@ function read_setting(file::AbstractString)
 end
 
 # ----------------------------------------------------------------------
-# 配列確保（標準Array：1始まり、オフセットシフト考慮）
+# 配列確保（標準Array：1始まり，オフセットシフト考慮）
 # ----------------------------------------------------------------------
 function allocate_sim(p)
     ig, jg = p.IG, p.JG
     lx, ly = ig + 1, jg + 1
 
-    # BETA/GAMMA: 0:(ig+1) -> 1:(ig+2)
     beta = std_oa(Float64, ig + 2, jg + 2, 2)
     fill!(beta, 1.0)
     gamma = std_oa(Float64, ig + 2, jg + 2, 2)
@@ -92,23 +92,19 @@ function allocate_sim(p)
         IG=ig, JG=jg, LX=lx, LY=ly,
         RE=p.RE, DEG=p.DEG, DT=p.DT, NC=p.NC, NG=p.NG,
         XL=p.XL, YL=p.YL, NWING=p.NWING,
-        # U, UT: 0:(ig+1), 0:(jg+1) -> 1:(ig+2), 1:(jg+2) (shift +1)
         U=std_oa(Float64, ig + 2, jg + 2, 2),
         UT=std_oa(Float64, ig + 2, jg + 2, 2),
         CNX_OLD=std_oa(Float64, ig + 1, jg + 1),
         CNY_OLD=std_oa(Float64, ig + 1, jg + 1),
-        # P, PHI: -4:(ig+4) -> 1:(ig+9), -2:(jg+2) -> 1:(jg+5) (shift X:+5, Y:+3)
         P=std_oa(Float64, ig + 9, jg + 5),
         PHI=std_oa(Float64, ig + 9, jg + 5),
         BETA=beta, GAMMA=gamma,
         IDX=std_oa(Int, ig + 1, jg + 1),
         IDY=std_oa(Int, ig + 1, jg + 1),
-        # 座標関連: -3:(lx+5) -> 1:(lx+9) (shift +4)
         X=std_oa(Float64, lx + 9), XX=std_oa(Float64, lx + 9),
         DX=std_oa(Float64, lx + 9), DXX=std_oa(Float64, lx + 9),
         Y=std_oa(Float64, ly + 9), YY=std_oa(Float64, ly + 9),
         DY=std_oa(Float64, ly + 9), DYY=std_oa(Float64, ly + 9),
-        # 微分・係数関連: 0:(lx+2) -> 1:(lx+3) (shift +1)
         PDX=std_oa(Float64, lx + 3), PDXX=std_oa(Float64, lx + 3),
         DX2=std_oa(Float64, lx + 3), DXX2=std_oa(Float64, lx + 3),
         PDX2=std_oa(Float64, lx + 3), PDX3=std_oa(Float64, lx + 3),
@@ -208,149 +204,146 @@ function calbeta!(s)
     xalp2 = 3.0
     for i in 1:ig
         x1 = 2.0 * Float64(i) / Float64(ig) - 1.0
-        x_temp[i + 4] = xl * (((xalp1 * (x1^xalp2) + x1) * 0.5) / (xalp1 + 1.0) + 0.5)
+        x_temp[i+4] = xl * (((xalp1 * (x1^xalp2) + x1) * 0.5) / (xalp1 + 1.0) + 0.5)
     end
     yalp1 = 1.0
     yalp2 = 5.0
     for j in 1:jg
         y1 = 2.0 * Float64(j) / Float64(jg) - 1.0
-        y_temp[j + 4] = yl * (((yalp1 * (y1^yalp2) + y1) * 0.5) / (yalp1 + 1.0) + 0.5)
+        y_temp[j+4] = yl * (((yalp1 * (y1^yalp2) + y1) * 0.5) / (yalp1 + 1.0) + 0.5)
     end
 
-    # 仮想境界条件の拡張 (shift +4: i=0 -> 4, i=-1 -> 3, ...)
-    x_temp[0 + 4] = 0.0
-    x_temp[-1 + 4] = -x_temp[1 + 4]
-    x_temp[-2 + 4] = -x_temp[2 + 4]
-    x_temp[-3 + 4] = -x_temp[3 + 4]
-    x_temp[ig + 1 + 4] = 2.0 * xl - x_temp[ig - 1 + 4]
-    x_temp[ig + 2 + 4] = 2.0 * xl - x_temp[ig - 2 + 4]
-    x_temp[ig + 3 + 4] = 2.0 * xl - x_temp[ig - 3 + 4]
-    x_temp[ig + 4 + 4] = 2.0 * xl - x_temp[ig - 4 + 4]
-    x_temp[ig + 5 + 4] = 2.0 * xl - x_temp[ig - 5 + 4]
+    x_temp[0+4] = 0.0
+    x_temp[-1+4] = -x_temp[1+4]
+    x_temp[-2+4] = -x_temp[2+4]
+    x_temp[-3+4] = -x_temp[3+4]
+    x_temp[ig+1+4] = 2.0 * xl - x_temp[ig-1+4]
+    x_temp[ig+2+4] = 2.0 * xl - x_temp[ig-2+4]
+    x_temp[ig+3+4] = 2.0 * xl - x_temp[ig-3+4]
+    x_temp[ig+4+4] = 2.0 * xl - x_temp[ig-4+4]
+    x_temp[ig+5+4] = 2.0 * xl - x_temp[ig-5+4]
 
-    y_temp[0 + 4] = 0.0
-    y_temp[-1 + 4] = -y_temp[1 + 4]
-    y_temp[-2 + 4] = -y_temp[2 + 4]
-    y_temp[-3 + 4] = -y_temp[3 + 4]
-    y_temp[jg + 1 + 4] = 2.0 * yl - y_temp[jg - 1 + 4]
-    y_temp[jg + 2 + 4] = 2.0 * yl - y_temp[jg - 2 + 4]
-    y_temp[jg + 3 + 4] = 2.0 * yl - y_temp[jg - 3 + 4]
-    y_temp[jg + 4 + 4] = 2.0 * yl - y_temp[jg - 4 + 4]
-    y_temp[jg + 5 + 4] = 2.0 * yl - y_temp[jg - 5 + 4]
+    y_temp[0+4] = 0.0
+    y_temp[-1+4] = -y_temp[1+4]
+    y_temp[-2+4] = -y_temp[2+4]
+    y_temp[-3+4] = -y_temp[3+4]
+    y_temp[jg+1+4] = 2.0 * yl - y_temp[jg-1+4]
+    y_temp[jg+2+4] = 2.0 * yl - y_temp[jg-2+4]
+    y_temp[jg+3+4] = 2.0 * yl - y_temp[jg-3+4]
+    y_temp[jg+4+4] = 2.0 * yl - y_temp[jg-4+4]
+    y_temp[jg+5+4] = 2.0 * yl - y_temp[jg-5+4]
 
-    for i in -2:(lx + 5)
-        x[i + 4] = x_temp[i + 4]
-        dx[i + 4] = x[i + 4] - x[i - 1 + 4]
-        xx[i + 4] = (x[i + 4] + x[i - 1 + 4]) * 0.5
-        dxx[i + 4] = xx[i + 4] - xx[i - 1 + 4]
+    for i in -2:(lx+5)
+        x[i+4] = x_temp[i+4]
+        dx[i+4] = x[i+4] - x[i-1+4]
+        xx[i+4] = (x[i+4] + x[i-1+4]) * 0.5
+        dxx[i+4] = xx[i+4] - xx[i-1+4]
     end
-    for j in -2:(ly + 5)
-        y[j + 4] = y_temp[j + 4]
-        dy[j + 4] = y[j + 4] - y[j - 1 + 4]
-        yy[j + 4] = (y[j + 4] + y[j - 1 + 4]) * 0.5
-        dyy[j + 4] = yy[j + 4] - yy[j - 1 + 4]
+    for j in -2:(ly+5)
+        y[j+4] = y_temp[j+4]
+        dy[j+4] = y[j+4] - y[j-1+4]
+        yy[j+4] = (y[j+4] + y[j-1+4]) * 0.5
+        dyy[j+4] = yy[j+4] - yy[j-1+4]
     end
 
     for i in 0:ig, j in 0:jg
-        beta[i + 1, j + 1, 1] = 1.0
-        beta[i + 1, j + 1, 2] = 1.0
+        beta[i+1, j+1, 1] = 1.0
+        beta[i+1, j+1, 2] = 1.0
     end
 
-    # --- BETA(:,:,1) (u-points) and GAMMA ---
     for i in 0:ig
         ib = 0
         it = 0
-        xi = x[i + 4]
+        xi = x[i+4]
         for ii in 1:igs
-            if (xi < wng_xb[ii + 1]) && (xi >= wng_xb[ii]); ib = ii; end
-            if (xi < wng_xt[ii + 1]) && (xi >= wng_xt[ii]); it = ii; end
+            if (xi < wng_xb[ii+1]) && (xi >= wng_xb[ii]); ib = ii; end
+            if (xi < wng_xt[ii+1]) && (xi >= wng_xt[ii]); it = ii; end
         end
         (ib * it == 0) && continue
         xta = xi - wng_xt[it]
         xba = xi - wng_xb[ib]
-        xtb = wng_xt[it + 1] - xi
-        xbb = wng_xb[ib + 1] - xi
-        yt = (wng_yt[it] * xtb + wng_yt[it + 1] * xta) / (xta + xtb)
-        yb = (wng_yb[ib] * xbb + wng_yb[ib + 1] * xba) / (xba + xbb)
+        xtb = wng_xt[it+1] - xi
+        xbb = wng_xb[ib+1] - xi
+        yt = (wng_yt[it] * xtb + wng_yt[it+1] * xta) / (xta + xtb)
+        yb = (wng_yb[ib] * xbb + wng_yb[ib+1] * xba) / (xba + xbb)
         for j in 0:jg
-            yyj = yy[j + 4]
+            yyj = yy[j+4]
             if (yyj >= yb) && (yyj < yt)
-                beta[i + 1, j + 1, 1] = 0.0
+                beta[i+1, j+1, 1] = 0.0
             end
-            if (yyj <= yb) && (yy[j + 1 + 4] > yb)
-                gamma[i + 1, j + 1, 1] = (yb - yyj) / (yb - yy[j - 1 + 4])
+            if (yyj <= yb) && (yy[j+1+4] > yb)
+                gamma[i+1, j+1, 1] = (yb - yyj) / (yb - yy[j-1+4])
             end
-            if (yyj >= yt) && (yy[j - 1 + 4] < yt)
-                gamma[i + 1, j + 1, 1] = (yyj - yt) / (yy[j + 1 + 4] - yt)
+            if (yyj >= yt) && (yy[j-1+4] < yt)
+                gamma[i+1, j+1, 1] = (yyj - yt) / (yy[j+1+4] - yt)
             end
         end
     end
 
-    # --- BETA(:,:,2) (v-points) ---
     for i in 0:ig
         ib = 0
         it = 0
-        xxi = xx[i + 4]
+        xxi = xx[i+4]
         for ii in 1:igs
-            if (xxi < wng_xb[ii + 1]) && (xxi >= wng_xb[ii]); ib = ii; end
-            if (xxi < wng_xt[ii + 1]) && (xxi >= wng_xt[ii]); it = ii; end
+            if (xxi < wng_xb[ii+1]) && (xxi >= wng_xb[ii]); ib = ii; end
+            if (xxi < wng_xt[ii+1]) && (xxi >= wng_xt[ii]); it = ii; end
         end
         (ib * it == 0) && continue
         xta = xxi - wng_xt[it]
         xba = xxi - wng_xb[ib]
-        xtb = wng_xt[it + 1] - xxi
-        xbb = wng_xb[ib + 1] - xxi
-        yt = (wng_yt[it] * xtb + wng_yt[it + 1] * xta) / (xta + xtb)
-        yb = (wng_yb[ib] * xbb + wng_yb[ib + 1] * xba) / (xba + xbb)
+        xtb = wng_xt[it+1] - xxi
+        xbb = wng_xb[ib+1] - xxi
+        yt = (wng_yt[it] * xtb + wng_yt[it+1] * xta) / (xta + xtb)
+        yb = (wng_yb[ib] * xbb + wng_yb[ib+1] * xba) / (xba + xbb)
         for j in 0:jg
-            yj = y[j + 4]
+            yj = y[j+4]
             if (yj >= yb) && (yj < yt)
-                beta[i + 1, j + 1, 2] = 0.0
+                beta[i+1, j+1, 2] = 0.0
             end
         end
     end
 
     println(" GRID GENERATION OK!")
 
-    for i in 1:ig, j in 1:(jg - 1)
-        idx[i + 1, j + 1] = 4 * Int(beta[i + 1, j - 1 + 1, 1]) + 2 * Int(beta[i + 1, j + 1, 1]) + 1 * Int(beta[i + 1, j + 1 + 1, 1])
-        idy[i + 1, j + 1] = 4 * Int(beta[i - 1 + 1, j + 1, 2]) + 2 * Int(beta[i + 1, j + 1, 2]) + 1 * Int(beta[i + 1 + 1, j + 1, 2])
+    for i in 1:ig, j in 1:(jg-1)
+        idx[i+1, j+1] = 4 * Int(beta[i+1, j-1+1, 1]) + 2 * Int(beta[i+1, j+1, 1]) + 1 * Int(beta[i+1, j+1+1, 1])
+        idy[i+1, j+1] = 4 * Int(beta[i-1+1, j+1, 2]) + 2 * Int(beta[i+1, j+1, 2]) + 1 * Int(beta[i+1+1, j+1, 2])
     end
 
-    for i in 0:(ig + 1)
-        dx2[i + 1] = dx[i + 4] + dx[i + 1 + 4]
-        dxx2[i + 1] = dxx[i + 4] + dxx[i + 1 + 4]
-        pdx[i + 1] = 1.0 / dx[i + 4]
-        pdxx[i + 1] = 1.0 / dxx[i + 4]
-        pdx2[i + 1] = 1.0 / (dx[i + 4] + dx[i + 1 + 4])
-        pdx3[i + 1] = 1.0 / (dx[i + 4] * dx[i + 1 + 4] * (dx[i + 4] + dx[i + 1 + 4]))
-        pdxx3[i + 1] = 1.0 / (dxx[i + 4] * dxx[i + 1 + 4] * (dxx[i + 4] + dxx[i + 1 + 4]))
+    for i in 0:(ig+1)
+        dx2[i+1] = dx[i+4] + dx[i+1+4]
+        dxx2[i+1] = dxx[i+4] + dxx[i+1+4]
+        pdx[i+1] = 1.0 / dx[i+4]
+        pdxx[i+1] = 1.0 / dxx[i+4]
+        pdx2[i+1] = 1.0 / (dx[i+4] + dx[i+1+4])
+        pdx3[i+1] = 1.0 / (dx[i+4] * dx[i+1+4] * (dx[i+4] + dx[i+1+4]))
+        pdxx3[i+1] = 1.0 / (dxx[i+4] * dxx[i+1+4] * (dxx[i+4] + dxx[i+1+4]))
     end
-    for j in 0:(jg + 1)
-        dy2[j + 1] = dy[j + 4] + dy[j + 1 + 4]
-        dyy2[j + 1] = dyy[j + 4] + dyy[j + 1 + 4]
-        pdy[j + 1] = 1.0 / dy[j + 4]
-        pdyy[j + 1] = 1.0 / dyy[j + 4]
-        pdy2[j + 1] = 1.0 / (dy[j + 4] + dy[j + 1 + 4])
-        pdy3[j + 1] = 1.0 / (dy[j + 4] * dy[j + 1 + 4] * (dy[j + 4] + dy[j + 1 + 4]))
-        pdyy3[j + 1] = 1.0 / (dyy[j + 4] * dyy[j + 1 + 4] * (dyy[j + 4] + dyy[j + 1 + 4]))
+    for j in 0:(jg+1)
+        dy2[j+1] = dy[j+4] + dy[j+1+4]
+        dyy2[j+1] = dyy[j+4] + dyy[j+1+4]
+        pdy[j+1] = 1.0 / dy[j+4]
+        pdyy[j+1] = 1.0 / dyy[j+4]
+        pdy2[j+1] = 1.0 / (dy[j+4] + dy[j+1+4])
+        pdy3[j+1] = 1.0 / (dy[j+4] * dy[j+1+4] * (dy[j+4] + dy[j+1+4]))
+        pdyy3[j+1] = 1.0 / (dyy[j+4] * dyy[j+1+4] * (dyy[j+4] + dyy[j+1+4]))
     end
 
     for i in 1:ig
-        d_w[i + 1] = pdx[i + 1] * pdxx[i + 1]
-        d_e[i + 1] = pdx[i + 1] * pdxx[i + 1 + 1]
+        d_w[i+1] = pdx[i+1] * pdxx[i+1]
+        d_e[i+1] = pdx[i+1] * pdxx[i+1+1]
     end
     for j in 1:jg
-        d_s[j + 1] = pdy[j + 1] * pdyy[j + 1]
-        d_n[j + 1] = pdy[j + 1] * pdyy[j + 1 + 1]
+        d_s[j+1] = pdy[j+1] * pdyy[j+1]
+        d_n[j+1] = pdy[j+1] * pdyy[j+1+1]
     end
     for i in 1:ig, j in 1:jg
-        pdphi[i + 1, j + 1] = 1.0 / (d_w[i + 1] + d_e[i + 1] + d_s[j + 1] + d_n[j + 1])
+        pdphi[i+1, j+1] = 1.0 / (d_w[i+1] + d_e[i+1] + d_s[j+1] + d_n[j+1])
     end
 
     dfn = 0.0
     for i in 1:ig, j in 1:jg
-        dfnn = dt / re * (1.0 / (dx[i + 4]^2) + 1.0 / (dy[j + 4]^2))
+        dfnn = dt / re * (1.0 / (dx[i+4]^2) + 1.0 / (dy[j+4]^2))
         dfn = max(dfn, dfnn)
     end
     println(lpad("DIFFUSION NUMBER = ", 20), fE(dfn, 11, 4))
@@ -359,7 +352,7 @@ function calbeta!(s)
 end
 
 # ----------------------------------------------------------------------
-# 予測子ステップ (fs_predictor!) - `@batch` および `@inbounds @fastmath` による高速化
+# 予測子ステップ (fs_predictor!) - @batch と @turbo の併用
 # ----------------------------------------------------------------------
 function fs_predictor!(s, first_step::Bool)
     ig, jg, re, dt = s.IG, s.JG, s.RE, s.DT
@@ -370,75 +363,62 @@ function fs_predictor!(s, first_step::Bool)
 
     pre = 1.0 / re
 
-    # ---- u-momentum ----
-    # i in 1:ig, j in 1:jg
-    # shift: u, ut, beta, gamma: +1
-    # p: X:+5, Y:+3
-    # dx, dxx: +4; dy, dyy: +4
-    # pdx, pdxx, dx2, pdx2, pdx3: +1
-    # pdy, pdyy, dy2, pdy2, pdy3, pdyy3: +1
+    # u-運動量方程式
     @batch for j in 1:jg
-        @inbounds @fastmath for i in 1:ig
-            if beta[i + 1, j + 1, 1] == 1.0
-                ududx = 0.5 * ((u[i + 1 + 1, j + 1, 1] + u[i + 1, j + 1, 1]) * (u[i + 1 + 1, j + 1, 1] - u[i + 1, j + 1, 1]) * pdx[i + 1 + 1] * dx[i + 4] +
-                        (u[i + 1, j + 1, 1] + u[i - 1 + 1, j + 1, 1]) * (u[i + 1, j + 1, 1] - u[i - 1 + 1, j + 1, 1]) * pdx[i + 1] * dx[i + 1 + 4]) * pdx2[i + 1]
-                vdudy = 0.5 * ((u[i + 1 + 1, j + 1, 2] * dx[i + 4] + u[i + 1, j + 1, 2] * dx[i + 1 + 4]) * (u[i + 1, j + 1 + 1, 1] - u[i + 1, j + 1, 1]) * pdyy[j + 1 + 1] +
-                        (u[i + 1 + 1, j - 1 + 1, 2] * dx[i + 4] + u[i + 1, j - 1 + 1, 2] * dx[i + 1 + 4]) * (u[i + 1, j + 1, 1] - u[i + 1, j - 1 + 1, 1]) * pdyy[j + 1]) * pdx2[i + 1]
-                u_con = ududx + vdudy
+        @turbo for i in 1:ig
+            ududx = 0.5 * ((u[i+2, j+1, 1] + u[i+1, j+1, 1]) * (u[i+2, j+1, 1] - u[i+1, j+1, 1]) * pdx[i+2] * dx[i+4] +
+                    (u[i+1, j+1, 1] + u[i, j+1, 1]) * (u[i+1, j+1, 1] - u[i, j+1, 1]) * pdx[i+1] * dx[i+5]) * pdx2[i+1]
+            vdudy = 0.5 * ((u[i+2, j+1, 2] * dx[i+4] + u[i+1, j+1, 2] * dx[i+5]) * (u[i+1, j+2, 1] - u[i+1, j+1, 1]) * pdyy[j+2] +
+                    (u[i+2, j, 2] * dx[i+4] + u[i+1, j, 2] * dx[i+5]) * (u[i+1, j+1, 1] - u[i+1, j, 1]) * pdyy[j+1]) * pdx2[i+1]
+            u_con = ududx + vdudy
 
-                uvisx = (dx[i + 1 + 4] * u[i - 1 + 1, j + 1, 1] - dx2[i + 1] * u[i + 1, j + 1, 1] + dx[i + 4] * u[i + 1 + 1, j + 1, 1]) * 2.0 * pdx3[i + 1] * pre
-                uvisy = (dyy[j + 1 + 4] * u[i + 1, j - 1 + 1, 1] - dyy2[j + 1] * u[i + 1, j + 1, 1] + dyy[j + 4] * u[i + 1, j + 1 + 1, 1]) * 2.0 * pdyy3[j + 1] * pre
-                u_vis = uvisx + uvisy
+            uvisx = (dx[i+5] * u[i, j+1, 1] - dx2[i+1] * u[i+1, j+1, 1] + dx[i+4] * u[i+2, j+1, 1]) * 2.0 * pdx3[i+1] * pre
+            uvisy = (dyy[j+5] * u[i+1, j, 1] - dyy2[j+1] * u[i+1, j+1, 1] + dyy[j+4] * u[i+1, j+2, 1]) * 2.0 * pdyy3[j+1] * pre
+            u_vis = uvisx + uvisy
 
-                dpdx = (p[i + 1 + 5, j + 3] - p[i + 5, j + 3]) * pdxx[i + 1 + 1]
+            dpdx = (p[i+6, j+3] - p[i+5, j+3]) * pdxx[i+2]
 
-                val = u_con - u_vis + dpdx
-                if first_step
-                    ut[i + 1, j + 1, 1] = u[i + 1, j + 1, 1] - dt * val
-                else
-                    ut[i + 1, j + 1, 1] = (u[i + 1, j + 1, 1] - dt * (val * 1.5 - cnx_old[i + 1, j + 1] * 0.5)) * beta[i + 1, j + 1, 1]
-                end
-                cnx_old[i + 1, j + 1] = val
-            end
+            val = u_con - u_vis + dpdx
+            active = beta[i+1, j+1, 1] == 1.0
+            rhs_val = first_step ? (u[i+1, j+1, 1] - dt * val) :
+                      ((u[i+1, j+1, 1] - dt * (val * 1.5 - cnx_old[i+1, j+1] * 0.5)) * beta[i+1, j+1, 1])
+            ut[i+1, j+1, 1] = ifelse(active, rhs_val, ut[i+1, j+1, 1])
+            cnx_old[i+1, j+1] = ifelse(active, val, cnx_old[i+1, j+1])
         end
     end
 
-    # ---- v-momentum ----
-    # i in 1:ig, j in 1:(jg-1)
-    @batch for j in 1:(jg - 1)
-        @inbounds @fastmath for i in 1:ig
-            if beta[i + 1, j + 1, 2] == 1.0
-                udvdx = 0.5 * ((u[i + 1, j + 1 + 1, 1] * dy[j + 4] + u[i + 1, j + 1, 1] * dy[j + 1 + 4]) * (u[i + 1 + 1, j + 1, 2] - u[i + 1, j + 1, 2]) * pdxx[i + 1 + 1] +
-                        (u[i - 1 + 1, j + 1 + 1, 1] * dy[j + 4] + u[i - 1 + 1, j + 1, 1] * dy[j + 1 + 4]) * (u[i + 1, j + 1, 2] - u[i - 1 + 1, j + 1, 2]) * pdxx[i + 1]) * pdy2[j + 1]
-                vdvdy = 0.5 * ((u[i + 1, j + 1 + 1, 2] + u[i + 1, j + 1, 2]) * (u[i + 1, j + 1 + 1, 2] - u[i + 1, j + 1, 2]) * pdy[j + 1 + 1] * dy[j + 4] +
-                        (u[i + 1, j + 1, 2] + u[i + 1, j - 1 + 1, 2]) * (u[i + 1, j + 1, 2] - u[i + 1, j - 1 + 1, 2]) * pdy[j + 1] * dy[j + 1 + 4]) * pdy2[j + 1]
-                v_con = udvdx + vdvdy
+    # v-運動量方程式
+    @batch for j in 1:(jg-1)
+        @turbo for i in 1:ig
+            udvdx = 0.5 * ((u[i+1, j+2, 1] * dy[j+4] + u[i+1, j+1, 1] * dy[j+5]) * (u[i+2, j+1, 2] - u[i+1, j+1, 2]) * pdxx[i+2] +
+                    (u[i, j+2, 1] * dy[j+4] + u[i, j+1, 1] * dy[j+5]) * (u[i+1, j+1, 2] - u[i, j+1, 2]) * pdxx[i+1]) * pdy2[j+1]
+            vdvdy = 0.5 * ((u[i+1, j+2, 2] + u[i+1, j+1, 2]) * (u[i+1, j+2, 2] - u[i+1, j+1, 2]) * pdy[j+2] * dy[j+4] +
+                    (u[i+1, j+1, 2] + u[i+1, j, 2]) * (u[i+1, j+1, 2] - u[i+1, j, 2]) * pdy[j+1] * dy[j+5]) * pdy2[j+1]
+            v_con = udvdx + vdvdy
 
-                vvisx = (dxx[i + 1 + 4] * u[i - 1 + 1, j + 1, 2] - dxx2[i + 1] * u[i + 1, j + 1, 2] + dxx[i + 4] * u[i + 1 + 1, j + 1, 2]) * 2.0 * pdxx3[i + 1] * pre
-                vvisy = (dy[j + 1 + 4] * u[i + 1, j - 1 + 1, 2] - dy2[j + 1] * u[i + 1, j + 1, 2] + dy[j + 4] * u[i + 1, j + 1 + 1, 2]) * 2.0 * pdy3[j + 1] * pre
-                v_vis = vvisx + vvisy
+            vvisx = (dxx[i+5] * u[i, j+1, 2] - dxx2[i+1] * u[i+1, j+1, 2] + dxx[i+4] * u[i+2, j+1, 2]) * 2.0 * pdxx3[i+1] * pre
+            vvisy = (dy[j+5] * u[i+1, j, 2] - dy2[j+1] * u[i+1, j+1, 2] + dy[j+4] * u[i+1, j+2, 2]) * 2.0 * pdy3[j+1] * pre
+            v_vis = vvisx + vvisy
 
-                dpdy = (p[i + 5, j + 1 + 3] - p[i + 5, j + 3]) * pdyy[j + 1 + 1]
+            dpdy = (p[i+5, j+4] - p[i+5, j+3]) * pdyy[j+2]
 
-                val = v_con - v_vis + dpdy
-                if first_step
-                    ut[i + 1, j + 1, 2] = (u[i + 1, j + 1, 2] - dt * val) * beta[i + 1, j + 1, 2]
-                else
-                    ut[i + 1, j + 1, 2] = (u[i + 1, j + 1, 2] - dt * (val * 1.5 - cny_old[i + 1, j + 1] * 0.5)) * beta[i + 1, j + 1, 2]
-                end
-                cny_old[i + 1, j + 1] = val
-            end
+            val = v_con - v_vis + dpdy
+            active = beta[i+1, j+1, 2] == 1.0
+            rhs_val = first_step ? ((u[i+1, j+1, 2] - dt * val) * beta[i+1, j+1, 2]) :
+                      ((u[i+1, j+1, 2] - dt * (val * 1.5 - cny_old[i+1, j+1] * 0.5)) * beta[i+1, j+1, 2])
+            ut[i+1, j+1, 2] = ifelse(active, rhs_val, ut[i+1, j+1, 2])
+            cny_old[i+1, j+1] = ifelse(active, val, cny_old[i+1, j+1])
         end
     end
 
-    # ---- cut-cell correction near the wing surface ----
+    # 翼面近傍カットセル補正
     @batch for i in 1:ig
         @inbounds for j in 1:jg
-            if idx[i + 1, j + 1] == 3
-                ut[i + 1, j + 1, 1] = ut[i + 1, j + 1 + 1, 1] * gamma[i + 1, j + 1, 1]
+            if idx[i+1, j+1] == 3
+                ut[i+1, j+1, 1] = ut[i+1, j+2, 1] * gamma[i+1, j+1, 1]
             end
-            if idx[i + 1, j + 1] == 5
-                ut[i + 1, j + 1, 1] = ut[i + 1, j - 1 + 1, 1] * gamma[i + 1, j + 1, 1]
+            if idx[i+1, j+1] == 5
+                ut[i+1, j+1, 1] = ut[i+1, j, 1] * gamma[i+1, j+1, 1]
             end
         end
     end
@@ -448,13 +428,12 @@ end
 function fs0!(s)
     ig, jg = s.IG, s.JG
     u, p, beta = s.U, s.P, s.BETA
-    @batch for j in 0:(jg + 1)
-        @inbounds for i in 0:(ig + 1)
-            u[i + 1, j + 1, 1] = 1.0 * beta[i + 1, j + 1, 1]
-            u[i + 1, j + 1, 2] = 0.0 * beta[i + 1, j + 1, 2]
+    @batch for j in 0:(jg+1)
+        @turbo for i in 0:(ig+1)
+            u[i+1, j+1, 1] = 1.0 * beta[i+1, j+1, 1]
+            u[i+1, j+1, 2] = 0.0 * beta[i+1, j+1, 2]
         end
     end
-    # P: -4:(ig+4), -2:(jg+2) -> 1:(ig+9), 1:(jg+5)
     fill!(p, 0.0)
     fs_predictor!(s, true)
 end
@@ -464,16 +443,15 @@ fs1!(s) = fs_predictor!(s, false)
 # ----------------------------------------------------------------------
 # 圧力ポアソン方程式 (sor_row / fs2!)
 # ----------------------------------------------------------------------
+# sor_row はステップ幅 2 の更新と最大値探索を行うため @inbounds @fastmath を使用
 function sor_row(phi, d_w, d_e, d_s, d_n, rhs, pdphi, omg, ig, j, color)
     j_start = 1 + ((j + color) & 1)
     m = 0.0
-    # phi has shift X:+5, Y:+3.
-    # d_w, d_e, pdphi, rhs have shift +1 (or rhs 1-based)
     pj = j + 3
     @inbounds @fastmath for i in j_start:2:ig
         pi = i + 5
-        phi_calc = (d_w[i + 1] * phi[pi - 1, pj] + d_e[i + 1] * phi[pi + 1, pj] +
-            d_s[j + 1] * phi[pi, pj - 1] + d_n[j + 1] * phi[pi, pj + 1] - rhs[i, j]) * pdphi[i + 1, j + 1]
+        phi_calc = (d_w[i+1] * phi[pi-1, pj] + d_e[i+1] * phi[pi+1, pj] +
+            d_s[j+1] * phi[pi, pj-1] + d_n[j+1] * phi[pi, pj+1] - rhs[i, j]) * pdphi[i+1, j+1]
         phidif = phi_calc - phi[pi, pj]
         phi[pi, pj] = phi[pi, pj] + omg * phidif
         a = abs(phidif)
@@ -493,26 +471,26 @@ function fs2!(s)
 
     igf = 12
 
-    # outflow damping zone
+    # 流出減衰領域
     @batch for j in 1:jg
-        @inbounds for i in (div(ig * (igf - 1), igf) + 1):ig
-            damp = -tanh(4.5 * (x[i + 4] - xl))
-            ut[i + 1, j + 1, 1] = (ut[i + 1, j + 1, 1] - 1.0) * damp + 1.0
-            ut[i + 1, j + 1, 2] = ut[i + 1, j + 1, 2] * damp
+        @inbounds for i in (div(ig*(igf-1), igf)+1):ig
+            damp = -tanh(4.5 * (x[i+4] - xl))
+            ut[i+1, j+1, 1] = (ut[i+1, j+1, 1] - 1.0) * damp + 1.0
+            ut[i+1, j+1, 2] = ut[i+1, j+1, 2] * damp
         end
     end
 
     for i in 1:ig
-        ut[i + 1, 0 + 1, 1] = ut[i + 1, 1 + 1, 1]
-        ut[i + 1, jg + 1 + 1, 1] = ut[i + 1, jg + 1, 1]
-        ut[i + 1, 0 + 1, 2] = 0.0
-        ut[i + 1, jg + 1, 2] = 0.0
+        ut[i+1, 1, 1] = ut[i+1, 2, 1]
+        ut[i+1, jg+2, 1] = ut[i+1, jg+1, 1]
+        ut[i+1, 1, 2] = 0.0
+        ut[i+1, jg+1, 2] = 0.0
     end
     for j in 1:jg
-        ut[0 + 1, j + 1, 1] = 1.0
-        ut[ig + 1 + 1, j + 1, 1] = ut[ig + 1, j + 1, 1]
-        ut[0 + 1, j + 1, 2] = -ut[1 + 1, j + 1, 2]
-        ut[ig + 1 + 1, j + 1, 2] = -ut[ig + 1, j + 1, 2]
+        ut[1, j+1, 1] = 1.0
+        ut[ig+2, j+1, 1] = ut[ig+1, j+1, 1]
+        ut[1, j+1, 2] = -ut[2, j+1, 2]
+        ut[ig+2, j+1, 2] = -ut[ig+1, j+1, 2]
     end
 
     pdt = 1.0 / dt
@@ -521,9 +499,9 @@ function fs2!(s)
     ncount_final = 50001
 
     @batch for j in 1:jg
-        @inbounds @simd for i in 1:ig
-            rhs[i, j] = pdt * ((ut[i + 1, j + 1, 1] - ut[i - 1 + 1, j + 1, 1]) * pdx[i + 1] +
-                (ut[i + 1, j + 1, 2] - ut[i + 1, j - 1 + 1, 2]) * pdy[j + 1])
+        @turbo for i in 1:ig
+            rhs[i, j] = pdt * ((ut[i+1, j+1, 1] - ut[i, j+1, 1]) * pdx[i+1] +
+                (ut[i+1, j+1, 2] - ut[i+1, j, 2]) * pdy[j+1])
         end
     end
 
@@ -538,14 +516,13 @@ function fs2!(s)
                 ermax = ermax_color
             end
 
-            # Boundary conditions for phi (shift X:+5, Y:+3)
             for i in 1:ig
-                phi[i + 5, 0 + 3] = phi[i + 5, 1 + 3]
-                phi[i + 5, jg + 1 + 3] = phi[i + 5, jg + 3]
+                phi[i+5, 3] = phi[i+5, 4]
+                phi[i+5, jg+4] = phi[i+5, jg+3]
             end
             for j in 1:jg
-                phi[0 + 5, j + 3] = phi[1 + 5, j + 3]
-                phi[ig + 1 + 5, j + 3] = phi[ig + 5, j + 3]
+                phi[5, j+3] = phi[6, j+3]
+                phi[ig+6, j+3] = phi[ig+5, j+3]
             end
         end
 
@@ -557,12 +534,12 @@ function fs2!(s)
 
     ncount = ncount_final
 
-    p_stn = p[1 + 5, 1 + 3] + phi[1 + 5, 1 + 3]
+    p_stn = p[6, 4] + phi[6, 4]
     @batch for j in 1:jg
-        @inbounds for i in 1:ig
-            u[i + 1, j + 1, 1] = ut[i + 1, j + 1, 1] - dt * (phi[i + 1 + 5, j + 3] - phi[i + 5, j + 3]) * pdxx[i + 1 + 1]
-            u[i + 1, j + 1, 2] = ut[i + 1, j + 1, 2] - dt * (phi[i + 5, j + 1 + 3] - phi[i + 5, j + 3]) * pdyy[j + 1 + 1]
-            p[i + 5, j + 3] = p[i + 5, j + 3] + phi[i + 5, j + 3] - p_stn
+        @turbo for i in 1:ig
+            u[i+1, j+1, 1] = ut[i+1, j+1, 1] - dt * (phi[i+6, j+3] - phi[i+5, j+3]) * pdxx[i+2]
+            u[i+1, j+1, 2] = ut[i+1, j+1, 2] - dt * (phi[i+5, j+4] - phi[i+5, j+3]) * pdyy[j+2]
+            p[i+5, j+3] = p[i+5, j+3] + phi[i+5, j+3] - p_stn
         end
     end
 
@@ -578,50 +555,50 @@ function write_puv(s, num)
     nstep = @sprintf("%04d", num % 10000)
     open("TEXTDATA/puv_field" * nstep * ".dat", "w") do f20
         for i in 1:ig, j in 1:jg
-            vort = -((u[i + 1, j + 1, 1] + u[i - 1 + 1, j + 1, 1]) * 0.5 - (u[i + 1, j - 1 + 1, 1] + u[i - 1 + 1, j - 1 + 1, 1]) * 0.5) / dy[j + 4] +
-                ((u[i + 1, j + 1, 2] + u[i + 1, j - 1 + 1, 2]) * 0.5 - (u[i - 1 + 1, j + 1, 2] + u[i - 1 + 1, j - 1 + 1, 2]) * 0.5) / dx[i + 4]
+            vort = -((u[i+1, j+1, 1] + u[i, j+1, 1]) * 0.5 - (u[i+1, j, 1] + u[i, j, 1]) * 0.5) / dy[j+4] +
+                ((u[i+1, j+1, 2] + u[i+1, j, 2]) * 0.5 - (u[i, j+1, 2] + u[i, j, 2]) * 0.5) / dx[i+4]
             println(f20,
-                fE(xx[i + 4], 13, 5), fE(yy[j + 4], 13, 5), fE(p[i + 5, j + 3], 13, 5),
-                fE((u[i + 1, j + 1, 1] + u[i - 1 + 1, j + 1, 1]) * 0.5, 13, 5),
-                fE((u[i + 1, j + 1, 2] + u[i + 1, j - 1 + 1, 2]) * 0.5, 13, 5),
-                fE((beta[i + 1, j + 1, 2] + beta[i + 1, j - 1 + 1, 2]) * 0.5, 13, 5),
-                fE((beta[i + 1, j + 1, 1] + beta[i - 1 + 1, j + 1, 1]) * 0.5, 13, 5),
+                fE(xx[i+4], 13, 5), fE(yy[j+4], 13, 5), fE(p[i+5, j+3], 13, 5),
+                fE((u[i+1, j+1, 1] + u[i, j+1, 1]) * 0.5, 13, 5),
+                fE((u[i+1, j+1, 2] + u[i+1, j, 2]) * 0.5, 13, 5),
+                fE((beta[i+1, j+1, 2] + beta[i+1, j, 2]) * 0.5, 13, 5),
+                fE((beta[i+1, j+1, 1] + beta[i, j+1, 1]) * 0.5, 13, 5),
                 fE(vort, 13, 5))
         end
     end
 end
 
 # ----------------------------------------------------------------------
-# UBC : boundary conditions, DIV / CFL / mean U, C_L, C_D
+# UBC : 境界条件，DIV / CFL / 平均 U，C_L，C_D
 # ----------------------------------------------------------------------
 function ubc!(s, num)
     ig, jg, dt, yl = s.IG, s.JG, s.DT, s.YL
     u, p, beta, pdx, pdy, dx, dy = s.U, s.P, s.BETA, s.PDX, s.PDY, s.DX, s.DY
 
     for i in 1:ig
-        u[i + 1, 0 + 1, 1] = u[i + 1, 1 + 1, 1]
-        u[i + 1, jg + 1 + 1, 1] = u[i + 1, jg + 1, 1]
-        u[i + 1, 0 + 1, 2] = 0.0
-        u[i + 1, jg + 1, 2] = 0.0
+        u[i+1, 1, 1] = u[i+1, 2, 1]
+        u[i+1, jg+2, 1] = u[i+1, jg+1, 1]
+        u[i+1, 1, 2] = 0.0
+        u[i+1, jg+1, 2] = 0.0
     end
     for j in 1:jg
-        u[0 + 1, j + 1, 1] = 1.0
-        u[ig + 1 + 1, j + 1, 1] = u[ig + 1, j + 1, 1]
-        u[0 + 1, j + 1, 2] = -u[1 + 1, j + 1, 2]
-        u[ig + 1 + 1, j + 1, 2] = -u[ig + 1, j + 1, 2]
+        u[1, j+1, 1] = 1.0
+        u[ig+2, j+1, 1] = u[ig+1, j+1, 1]
+        u[1, j+1, 2] = -u[2, j+1, 2]
+        u[ig+2, j+1, 2] = -u[ig+1, j+1, 2]
     end
-    for i in -3:(ig + 3)
-        p[i + 5, 0 + 3] = p[i + 5, 1 + 3]
-        p[i + 5, jg + 1 + 3] = p[i + 5, jg + 3]
+    for i in -3:(ig+3)
+        p[i+5, 3] = p[i+5, 4]
+        p[i+5, jg+4] = p[i+5, jg+3]
     end
     for j in 1:jg
-        p[0 + 5, j + 3] = p[1 + 5, j + 3]
-        p[ig + 1 + 5, j + 3] = p[ig + 5, j + 3]
+        p[5, j+3] = p[6, j+3]
+        p[ig+6, j+3] = p[ig+5, j+3]
     end
 
     div = 0.0
     for j in 1:jg, i in 1:ig
-        qqqq = (u[i + 1, j + 1, 1] - u[i - 1 + 1, j + 1, 1]) * pdx[i + 1] + (u[i + 1, j + 1, 2] - u[i + 1, j - 1 + 1, 2]) * pdy[j + 1]
+        qqqq = (u[i+1, j+1, 1] - u[i, j+1, 1]) * pdx[i+1] + (u[i+1, j+1, 2] - u[i+1, j, 2]) * pdy[j+1]
         qqq = abs(qqqq)
         if qqq > div
             div = qqq
@@ -630,8 +607,8 @@ function ubc!(s, num)
 
     cfl = 0.0
     for j in 1:jg, i in 1:ig
-        cfll = (abs(u[i + 1, j + 1, 1] + u[i - 1 + 1, j + 1, 1]) * pdx[i + 1] +
-            abs(u[i + 1, j + 1, 2] + u[i + 1, j - 1 + 1, 2]) * pdy[j + 1]) * 0.5 * dt
+        cfll = (abs(u[i+1, j+1, 1] + u[i, j+1, 1]) * pdx[i+1] +
+            abs(u[i+1, j+1, 2] + u[i+1, j, 2]) * pdy[j+1]) * 0.5 * dt
         if cfll > cfl
             cfl = cfll
         end
@@ -639,7 +616,7 @@ function ubc!(s, num)
 
     usum = 0.0
     for j in 1:jg, i in 1:ig
-        usum = usum + u[i + 1, j + 1, 1] * dy[j + 4]
+        usum = usum + u[i+1, j+1, 1] * dy[j+4]
     end
     usum = usum / Float64(ig) / yl
 
@@ -652,14 +629,14 @@ function ubc!(s, num)
         p_top = 0.0
         p_btm = 0.0
         for j in 2:jg
-            if beta[i + 1, j + 1, 2] - beta[i + 1, j - 1 + 1, 2] >= 0.50
-                p_top = p[i + 5, j + 1 + 3]
+            if beta[i+1, j+1, 2] - beta[i+1, j, 2] >= 0.50
+                p_top = p[i+5, j+4]
             end
-            if beta[i + 1, j + 1, 2] - beta[i + 1, j - 1 + 1, 2] <= -0.50
-                p_btm = p[i + 5, j - 2 + 3]
+            if beta[i+1, j+1, 2] - beta[i+1, j, 2] <= -0.50
+                p_btm = p[i+5, j+1]
             end
         end
-        p_sum = p_sum + dx[i + 4] * (p_btm - p_top)
+        p_sum = p_sum + dx[i+4] * (p_btm - p_top)
     end
     cl = p_sum * 2.0
 
@@ -668,14 +645,14 @@ function ubc!(s, num)
         p_top = 0.0
         p_btm = 0.0
         for i in 2:ig
-            if beta[i + 1, j + 1, 1] - beta[i - 1 + 1, j + 1, 1] >= 0.5
-                p_top = p[i + 3 + 5, j + 3]
+            if beta[i+1, j+1, 1] - beta[i, j+1, 1] >= 0.5
+                p_top = p[i+8, j+3]
             end
-            if beta[i + 1, j + 1, 1] - beta[i - 1 + 1, j + 1, 1] <= -0.5
-                p_btm = p[i - 4 + 5, j + 3]
+            if beta[i+1, j+1, 1] - beta[i, j+1, 1] <= -0.5
+                p_btm = p[i+1, j+3]
             end
         end
-        p_sum = p_sum + dy[j + 4] * (p_btm - p_top)
+        p_sum = p_sum + dy[j+4] * (p_btm - p_top)
     end
     cd = p_sum * 2.0
 
@@ -721,15 +698,15 @@ function output(s, num, time)
         println(f14, a71(cmtd3))
 
         println(f14, a71(cprm4))
-        for i in 0:(ig + 1)
-            println(f14, @sprintf("%3d", i), fE(x[i + 4], 14, 6), fE(dx[i + 4], 14, 6),
-                fE(xx[i + 4], 14, 6), fE(dxx[i + 4], 14, 6))
+        for i in 0:(ig+1)
+            println(f14, @sprintf("%3d", i), fE(x[i+4], 14, 6), fE(dx[i+4], 14, 6),
+                fE(xx[i+4], 14, 6), fE(dxx[i+4], 14, 6))
         end
 
         println(f14, a71(cprm5))
-        for j in 0:(ly + 1)
-            println(f14, @sprintf("%3d", j), fE(y[j + 4], 14, 6), fE(dy[j + 4], 14, 6),
-                fE(yy[j + 4], 14, 6), fE(dyy[j + 4], 14, 6))
+        for j in 0:(ly+1)
+            println(f14, @sprintf("%3d", j), fE(y[j+4], 14, 6), fE(dy[j+4], 14, 6),
+                fE(yy[j+4], 14, 6), fE(dyy[j+4], 14, 6))
         end
 
         println(f14, a71(cprm6))
@@ -738,17 +715,17 @@ function output(s, num, time)
             p_top = 0.0
             p_btm = 0.0
             for j in 2:jg
-                if beta[i + 1, j + 1, 2] - beta[i + 1, j - 1 + 1, 2] >= 0.50
-                    p_top = p[i + 5, j + 1 + 3]
+                if beta[i+1, j+1, 2] - beta[i+1, j, 2] >= 0.50
+                    p_top = p[i+5, j+4]
                 end
-                if beta[i + 1, j + 1, 2] - beta[i + 1, j - 1 + 1, 2] <= -0.50
-                    p_btm = p[i + 5, j - 2 + 3]
+                if beta[i+1, j+1, 2] - beta[i+1, j, 2] <= -0.50
+                    p_btm = p[i+5, j+1]
                 end
             end
             if p_top != 0.0
-                println(f14, fE(x[i + 4], 14, 6), fE(dx[i + 4], 14, 6), fE(p_top, 14, 6), fE(p_btm, 14, 6))
+                println(f14, fE(x[i+4], 14, 6), fE(dx[i+4], 14, 6), fE(p_top, 14, 6), fE(p_btm, 14, 6))
             end
-            p_sum = p_sum + dx[i + 4] * (p_btm - p_top)
+            p_sum = p_sum + dx[i+4] * (p_btm - p_top)
         end
         cl = p_sum * 2.0
 
@@ -758,17 +735,17 @@ function output(s, num, time)
             p_top = 0.0
             p_btm = 0.0
             for i in 2:ig
-                if beta[i + 1, j + 1, 1] - beta[i - 1 + 1, j + 1, 1] >= 0.5
-                    p_top = p[i + 3 + 5, j + 3]
+                if beta[i+1, j+1, 1] - beta[i, j+1, 1] >= 0.5
+                    p_top = p[i+8, j+3]
                 end
-                if beta[i + 1, j + 1, 1] - beta[i - 1 + 1, j + 1, 1] <= -0.5
-                    p_btm = p[i - 4 + 5, j + 3]
+                if beta[i+1, j+1, 1] - beta[i, j+1, 1] <= -0.5
+                    p_btm = p[i+1, j+3]
                 end
             end
             if p_top != 0.0
-                println(f14, fE(y[j + 4], 14, 6), fE(dy[j + 4], 14, 6), fE(p_top, 14, 6), fE(p_btm, 14, 6))
+                println(f14, fE(y[j+4], 14, 6), fE(dy[j+4], 14, 6), fE(p_top, 14, 6), fE(p_btm, 14, 6))
             end
-            p_sum = p_sum + dy[j + 4] * (p_btm - p_top)
+            p_sum = p_sum + dy[j+4] * (p_btm - p_top)
         end
         cd = p_sum * 2.0
     end
@@ -777,7 +754,7 @@ function output(s, num, time)
 end
 
 # ----------------------------------------------------------------------
-# SEED DATA : restart files
+# SEED DATA : リスタートファイル
 # ----------------------------------------------------------------------
 function seedout(s, num, time)
     open("seed_u.dat", "w") do f31
@@ -824,13 +801,13 @@ function seedin!(s)
     end
 
     nu = length(s.U)
-    copyto!(vec(s.U), parse_f.(tu[9:(8 + nu)]))
+    copyto!(vec(s.U), parse_f.(tu[9:(8+nu)]))
     copyto!(vec(s.P), parse_f.(tokens("seed_p.dat")[1:length(s.P)]))
     to = tokens("seed_old.dat")
     nx = length(s.CNX_OLD)
     ny = length(s.CNY_OLD)
     copyto!(vec(s.CNX_OLD), parse_f.(to[1:nx]))
-    copyto!(vec(s.CNY_OLD), parse_f.(to[(nx + 1):(nx + ny)]))
+    copyto!(vec(s.CNY_OLD), parse_f.(to[(nx+1):(nx+ny)]))
 
     println(" READ VELOCITY-SEED DATA OK!")
     return 0, num, time, dt, re

@@ -66,9 +66,11 @@ end
 
 function run_child(source, report_path)
     cmd = `$(Base.julia_cmd()) --project=$(BENCHMARK_DIR) $(BENCHMARK_SCRIPT)`
-    output = read(setenv(cmd, Dict("BENCHMARK_CHILD" => "1",
-        "BENCHMARK_SOURCE" => source,
-        "BENCHMARK_RESULT_PATH" => report_path)), String)
+    child_env = copy(ENV)
+    child_env["BENCHMARK_CHILD"] = "1"
+    child_env["BENCHMARK_SOURCE"] = source
+    child_env["BENCHMARK_RESULT_PATH"] = report_path
+    output = read(setenv(cmd, child_env), String)
     report_match = match(r"Saved results to: (.+)", output)
     report_match === nothing &&
         error("benchmark process did not report its results file for $source")

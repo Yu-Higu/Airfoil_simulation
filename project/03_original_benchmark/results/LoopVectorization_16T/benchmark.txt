@@ -1,0 +1,322 @@
+Airfoil simulation benchmark using project/01 setting.dat
+Date: 2026-11-20T17:56:13.653
+Source: /home/yuya_higuchi/dev/Airfoil_simulation/src/AirfoilSimulation.jl
+Julia: 1.13.0; CPU: raptorlake; threads: 16
+Conditions: IG=384, JG=144, RE=500.0, DEG=20.0, DT=0.0025, NC=200, NG=5
+BenchmarkTools seconds per target: 5.0
+Each mutating sample uses a fresh deepcopy of its fixed stage input.
+All output targets use temporary directories; setup/cleanup is excluded.
+
+=== BenchmarkTools results ===
+
+04 Initial boundaries and diagnostics: ubc! core
+BenchmarkTools.Trial: 3721 samples with 1 evaluation per sample.
+ Range (min … max):  208.455 μs … 742.529 μs  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     247.823 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   260.671 μs ±  47.192 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+     ▁▂█▅▅▆▆▄▁▁                                                  
+  ▂▅███████████▇▇▆▅▅▄▄▄▃▃▃▃▃▃▃▃▃▂▂▃▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▃
+  208 μs           Histogram: frequency by time          468 μs <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+09c Later boundaries and diagnostics: ubc! at NUM=200
+BenchmarkTools.Trial: 3706 samples with 1 evaluation per sample.
+ Range (min … max):  200.992 μs …  1.108 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     249.637 μs              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   263.644 μs ± 49.554 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+       ▁▆▆▆▆█▅▂▁                                                
+  ▂▁▃▆███████████▇▇▆▅▄▄▄▄▄▃▄▃▃▃▃▃▃▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂ ▄
+  201 μs          Histogram: frequency by time          469 μs <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+15 Complete run: main()
+BenchmarkTools.Trial: 1 sample with 1 evaluation per sample.
+ Single result which took 45.851 s (1.86% GC) to evaluate,
+ with a memory estimate of 12.53 GiB, over 243243178 allocations.
+
+02 Allocate simulation arrays
+BenchmarkTools.Trial: 5293 samples with 1 evaluation per sample.
+ Range (min … max):  222.157 μs … 16.790 ms  ┊ GC (min … max):  0.00% … 94.69%
+ Time  (median):     573.052 μs              ┊ GC (median):     0.00%
+ Time  (mean ± σ):   942.578 μs ±  1.403 ms  ┊ GC (mean ± σ):  23.02% ± 18.50%
+
+    ▆█▆▄▃▁    ▁▁▁▅▄▂▂▁                                         ▁
+  ▆▇██████▇████████████▇▇▇▇▆▆▅▅▅▄▄▁▁▃▃▁▁▁▁▃▁▁▃▁▁▁▁▁▁▄▅▅▅▅▄▄▅▄▄ █
+  222 μs        Histogram: log(frequency) by time      5.68 ms <
+
+ Memory estimate: 6.94 MiB, allocs estimate: 103.
+
+12 Summary output: output.dat
+BenchmarkTools.Trial: 2331 samples with 1 evaluation per sample.
+ Range (min … max):  795.385 μs …  17.201 ms  ┊ GC (min … max): 0.00% … 94.43%
+ Time  (median):     858.569 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   944.119 μs ± 841.538 μs  ┊ GC (mean ± σ):  6.90% ±  8.61%
+
+  ▁█▂                                                            
+  ███▆▄▃▃▂▂▂▂▂▂▂▁▂▁▂▁▂▁▁▁▁▂▁▁▁▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▂▂▁▁▁▁▂▁▁▂▁▂▁▂ ▂
+  795 μs           Histogram: frequency by time            3 ms <
+
+ Memory estimate: 1.86 MiB, allocs estimate: 35778.
+
+13 Restart output: seedout
+BenchmarkTools.Trial: 119 samples with 1 evaluation per sample.
+ Range (min … max):  25.778 ms … 65.690 ms  ┊ GC (min … max): 23.90% … 27.91%
+ Time  (median):     39.879 ms              ┊ GC (median):    25.05%
+ Time  (mean ± σ):   40.793 ms ±  9.137 ms  ┊ GC (mean ± σ):  28.53% ±  7.05%
+
+     ▁ ▁              ▄█▃ ▆▄ ▁   ▁                             
+  ▆▇▆█▆█▄▇▇▁▄▆▇▆▄▁▄▄▇▇███▇██▇█▄▄▇█▇▄▁▄▁▄▁▁▆▄▄▆▆▆▁▄▇▁▄▁▄▄▁▄▁▄▄ ▄
+  25.8 ms         Histogram: frequency by time        62.6 ms <
+
+ Memory estimate: 116.56 MiB, allocs estimate: 848810.
+
+06 First pressure solve: fs2! (SOR iterations=19591)
+BenchmarkTools.Trial: 14 samples with 1 evaluation per sample.
+ Range (min … max):  325.271 ms … 377.725 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     348.703 ms               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   350.734 ms ±  13.840 ms  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+  ▁           ▁       ▁ █▁  ▁▁  ▁  █           ▁         ▁    ▁  
+  █▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁█▁██▁▁██▁▁█▁▁█▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁█▁▁▁▁█ ▁
+  325 ms           Histogram: frequency by time          378 ms <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+11 Field output: write_puv
+BenchmarkTools.Trial: 37 samples with 1 evaluation per sample.
+ Range (min … max):  123.918 ms … 180.140 ms  ┊ GC (min … max):  8.34% … 21.83%
+ Time  (median):     128.797 ms               ┊ GC (median):    10.55%
+ Time  (mean ± σ):   136.508 ms ±  15.211 ms  ┊ GC (mean ± σ):  12.44% ±  3.76%
+
+  ▄▄▄▄██   ▁          ▁                         ▁                
+  ██████▆▁▆█▁▆▁▆▆▁▆▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▆▆▁▁▁▁▁▁▆▁▁▁▁▁█▁▁▁▁▆▁▁▁▁▁▁▁▁▆ ▁
+  124 ms           Histogram: frequency by time          180 ms <
+
+ Memory estimate: 304.75 MiB, allocs estimate: 5796218.
+
+03 Mesh and airfoil: calbeta!
+BenchmarkTools.Trial: 3030 samples with 1 evaluation per sample.
+ Range (min … max):  511.011 μs …  3.271 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     570.041 μs              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   593.186 μs ± 90.908 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+    ▃▄▅██▆▄▃▃▂                                                  
+  ▃▄████████████▇▆▄▄▄▄▃▄▃▄▃▃▃▃▃▃▃▃▃▃▂▃▂▂▂▂▂▂▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▁▂ ▄
+  511 μs          Histogram: frequency by time          917 μs <
+
+ Memory estimate: 32.73 KiB, allocs estimate: 589.
+
+08b Later pressure solve: fs2! at NUM=100 (SOR iterations=16263)
+BenchmarkTools.Trial: 17 samples with 1 evaluation per sample.
+ Range (min … max):  273.210 ms … 322.236 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     293.940 ms               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   296.515 ms ±  14.106 ms  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+  ▁      ▁   ▁   █ ▁   ▁▁  ▁     █      ▁  ▁  ▁       ▁ ▁     ▁  
+  █▁▁▁▁▁▁█▁▁▁█▁▁▁█▁█▁▁▁██▁▁█▁▁▁▁▁█▁▁▁▁▁▁█▁▁█▁▁█▁▁▁▁▁▁▁█▁█▁▁▁▁▁█ ▁
+  273 ms           Histogram: frequency by time          322 ms <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+08a Later pressure solve: fs2! at NUM=2 (SOR iterations=21680)
+BenchmarkTools.Trial: 13 samples with 1 evaluation per sample.
+ Range (min … max):  373.442 ms … 419.112 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     392.511 ms               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   391.792 ms ±  14.083 ms  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+  █    ▁   ▁         ▁  ▁  ▁▁  ▁▁  ▁                     ▁    ▁  
+  █▁▁▁▁█▁▁▁█▁▁▁▁▁▁▁▁▁█▁▁█▁▁██▁▁██▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁█ ▁
+  373 ms           Histogram: frequency by time          419 ms <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+09b Later boundaries and diagnostics: ubc! at NUM=100
+BenchmarkTools.Trial: 3805 samples with 1 evaluation per sample.
+ Range (min … max):  200.125 μs … 833.057 μs  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     247.124 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   259.709 μs ±  48.880 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+      ▂▃▆█▄▄▄▄▂                                                  
+  ▁▁▂▇██████████▇▆▆▄▄▄▃▃▄▃▂▂▂▂▂▂▂▂▂▁▁▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ ▃
+  200 μs           Histogram: frequency by time          472 μs <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+10 Periodic boundaries plus field output
+BenchmarkTools.Trial: 36 samples with 1 evaluation per sample.
+ Range (min … max):  123.035 ms … 184.561 ms  ┊ GC (min … max):  7.97% … 15.49%
+ Time  (median):     127.451 ms               ┊ GC (median):     9.83%
+ Time  (mean ± σ):   138.723 ms ±  19.321 ms  ┊ GC (mean ± σ):  12.28% ±  4.29%
+
+    ▂█                                                           
+  ▆████▆▄▁▄▁▁▁▁▁▁▁▁▄▆▁▄▄▁▁▁▁▁▁▁▄▁▁▁▁▁▁▄▁▁▁▁▁▁▁▁▁▁▁▁▆▁▄▄▁▁▁▄▁▁▁▄ ▁
+  123 ms           Histogram: frequency by time          185 ms <
+
+ Memory estimate: 304.75 MiB, allocs estimate: 5796218.
+
+05 First velocity predictor: fs0!
+BenchmarkTools.Trial: 580 samples with 1 evaluation per sample.
+ Range (min … max):   96.216 μs …   3.340 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     185.863 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   272.946 μs ± 273.125 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+   ▂▇██▇▅▄▄▂▂           ▁▁▁▂ ▁                                   
+  ▇██████████▇▇▅▇▅▆▁▅▄▆▇███████▇▆▅▄▄▅▅▄▁▄▁▁▁▄▁▄▄▁▁▄▁▄▁▄▄▁▁▁▁▁▁▅ ▇
+  96.2 μs       Histogram: log(frequency) by time       1.12 ms <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+07b Later velocity predictor: fs1! at NUM=100
+BenchmarkTools.Trial: 565 samples with 1 evaluation per sample.
+ Range (min … max):   72.110 μs …   2.565 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     173.142 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   246.831 μs ± 235.635 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+    ▇██▆▅▂       ▁▂▂▂                                            
+  ▇▇███████▇█▇▆▄▆██████▇█▇▄▁▁▁▁▄▁▁▁▁▄▁▁▁▁▁▁▁▁▁▁▁▁▁▄▁▄▁▁▁▁▁▁▄▁▁▄ ▇
+  72.1 μs       Histogram: log(frequency) by time       1.38 ms <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+08c Later pressure solve: fs2! at NUM=200 (SOR iterations=16320)
+BenchmarkTools.Trial: 17 samples with 1 evaluation per sample.
+ Range (min … max):  272.910 ms … 309.687 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     292.338 ms               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   292.689 ms ±  10.317 ms  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+  █       █     █  █     █ █ █   ███  █       █ ██   █     █  █  
+  █▁▁▁▁▁▁▁█▁▁▁▁▁█▁▁█▁▁▁▁▁█▁█▁█▁▁▁███▁▁█▁▁▁▁▁▁▁█▁██▁▁▁█▁▁▁▁▁█▁▁█ ▁
+  273 ms           Histogram: frequency by time          310 ms <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+07a Later velocity predictor: fs1! at NUM=2
+BenchmarkTools.Trial: 482 samples with 1 evaluation per sample.
+ Range (min … max):   78.931 μs …   3.770 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     169.847 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   260.806 μs ± 287.509 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+   ▅██▆▅▂       ▁▃▃▂▂                                            
+  ▇███████▇▇▄▄▆▅█████▆█▄▅▅▁▄▄▁▁▁▁▄▁▁▁▄▁▁▁▁▁▄▁▁▁▁▄▁▁▁▄▁▁▄▁▁▁▁▁▁▄ ▇
+  78.9 μs       Histogram: log(frequency) by time       1.47 ms <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+01 Read setting.dat
+BenchmarkTools.Trial: 10000 samples with 1 evaluation per sample.
+ Range (min … max):  5.696 μs … 65.952 μs  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     6.018 μs              ┊ GC (median):    0.00%
+ Time  (mean ± σ):   6.334 μs ±  1.685 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+  ▆█▇▆▅▅▄▃▃▂▁▁                                               ▂
+  ██████████████▇▇▇▇▆▆▆▆▆▆▅▅▆▅▅▅▃▅▅▁▃▁▄▆▄▄▄▅▁▃▄▃▃▄▄▄▃▅▄▄▄▁▁▄ █
+  5.7 μs       Histogram: log(frequency) by time     14.2 μs <
+
+ Memory estimate: 6.06 KiB, allocs estimate: 75.
+
+07c Later velocity predictor: fs1! at NUM=200
+BenchmarkTools.Trial: 577 samples with 1 evaluation per sample.
+ Range (min … max):   64.044 μs …   1.984 ms  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     163.893 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   239.806 μs ± 203.947 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+  ▁▁▂▆█▇▅▅▄▁         ▁▁ ▁▂                                       
+  ███████████▆▇▆▅▅▇▇▇████████▇▅▄▄▆▁▄▄▄▁▁▁▁▁▁▄▁▁▁▁▄▁▄▁▁▁▁▁▁▁▁▁▁▅ ▇
+  64 μs         Histogram: log(frequency) by time       1.15 ms <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+09a Later boundaries and diagnostics: ubc! at NUM=2
+BenchmarkTools.Trial: 4020 samples with 1 evaluation per sample.
+ Range (min … max):  199.935 μs … 875.872 μs  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     247.427 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   258.979 μs ±  46.899 μs  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+      ▁ ▂█▅▂▃▃▃▁                                                 
+  ▁▁▂▅██████████▇▅▆▅▄▃▃▃▃▃▃▃▂▂▂▂▂▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁ ▂
+  200 μs           Histogram: frequency by time          463 μs <
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+14 Restart input: seedin! (not called by main)
+BenchmarkTools.Trial: 75 samples with 1 evaluation per sample.
+ Range (min … max):  59.665 ms … 77.608 ms  ┊ GC (min … max): 0.00% … 22.33%
+ Time  (median):     63.536 ms              ┊ GC (median):    3.32%
+ Time  (mean ± σ):   65.319 ms ±  5.281 ms  ┊ GC (mean ± σ):  5.61% ±  6.72%
+
+  ▄ █▄     ▂                                                   
+  ████▆▁▄▁▆████▁▄▄▆▄▄▆█▄▄█▁▆▆▆▄▁▄▄▄▁▁▁▄▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▄▆▁▆█▁▄ ▁
+  59.7 ms         Histogram: frequency by time        77.5 ms <
+
+ Memory estimate: 50.97 MiB, allocs estimate: 283056.
+
+=== Machine-readable timing metrics ===
+METRIC	benchmark	04 Initial boundaries and diagnostics: ubc! core	247823.0
+METRIC	benchmark	09c Later boundaries and diagnostics: ubc! at NUM=200	249637.0
+METRIC	benchmark	15 Complete run: main()	4.5850940598e10
+METRIC	benchmark	02 Allocate simulation arrays	573052.0
+METRIC	benchmark	12 Summary output: output.dat	858569.0
+METRIC	benchmark	13 Restart output: seedout	3.9879051e7
+METRIC	benchmark	06 First pressure solve: fs2! (SOR iterations=19591)	3.48702827e8
+METRIC	benchmark	11 Field output: write_puv	1.28796646e8
+METRIC	benchmark	03 Mesh and airfoil: calbeta!	570041.0
+METRIC	benchmark	08b Later pressure solve: fs2! at NUM=100 (SOR iterations=16263)	2.93940129e8
+METRIC	benchmark	08a Later pressure solve: fs2! at NUM=2 (SOR iterations=21680)	3.92511269e8
+METRIC	benchmark	09b Later boundaries and diagnostics: ubc! at NUM=100	247124.0
+METRIC	benchmark	10 Periodic boundaries plus field output	1.274508795e8
+METRIC	benchmark	05 First velocity predictor: fs0!	185862.5
+METRIC	benchmark	07b Later velocity predictor: fs1! at NUM=100	173142.0
+METRIC	benchmark	08c Later pressure solve: fs2! at NUM=200 (SOR iterations=16320)	2.92337916e8
+METRIC	benchmark	07a Later velocity predictor: fs1! at NUM=2	169847.0
+METRIC	benchmark	01 Read setting.dat	6018.0
+METRIC	benchmark	07c Later velocity predictor: fs1! at NUM=200	163893.0
+METRIC	benchmark	09a Later boundaries and diagnostics: ubc! at NUM=2	247426.5
+METRIC	benchmark	14 Restart input: seedin! (not called by main)	6.3535889e7
+
+Measured SOR iteration counts in the full simulation:
+First step: 19591
+Step 2: 21680
+Step 100: 16263
+Step 200: 16320
+
+=== Per-stage time from one complete, sequential run ===
+These timers follow main() order and the exact configured state trajectory.
+Complete run: 45.484826 s
+Pressure solve: fs2!                         37.712517 s  82.9%
+Step UBC + periodic field output             7.381006 s  16.2%
+Summary output: output                       0.135733 s  0.3%
+Initial UBC + field output                   0.127108 s  0.3%
+Later predictor: fs1!                        0.088492 s  0.2%
+Restart output: seedout                      0.032162 s  0.1%
+First predictor: fs0!                        0.002378 s  0.0%
+Mesh generation: calbeta!                    0.000662 s  0.0%
+Allocate arrays                              0.00049 s  0.0%
+Create TEXTDATA directory                    9.0e-5 s  0.0%
+Read setting.dat                             3.6e-5 s  0.0%
+Time-series, logging, and uninstrumented work 0.004152 s  0.0%
+
+=== SOR iteration counts from the exact configured run ===
+First step: 19591
+Step 2: 21680
+Step 100: 16263
+Step 200: 16320
+Sequential timing run counts: min=514, max=21680
+
+=== Machine-readable sequential metrics ===
+METRIC	sequential	Complete run	45484826289
+METRIC	sequential	Create TEXTDATA directory	89741
+METRIC	sequential	Step UBC + periodic field output	7381006046
+METRIC	sequential	Restart output: seedout	32162000
+METRIC	sequential	Initial UBC + field output	127107935
+METRIC	sequential	Read setting.dat	36311
+METRIC	sequential	Summary output: output	135733184
+METRIC	sequential	First predictor: fs0!	2378327
+METRIC	sequential	Later predictor: fs1!	88491932
+METRIC	sequential	Mesh generation: calbeta!	661622
+METRIC	sequential	Pressure solve: fs2!	37712517302
+METRIC	sequential	Allocate arrays	489658
+METRIC	sequential	Other	4152231

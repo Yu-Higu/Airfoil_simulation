@@ -1,6 +1,6 @@
 const BENCHMARK_SOURCE = abspath(get(ENV, "BENCHMARK_SOURCE",
-                                     joinpath(@__DIR__, "src",
-                                              "3ME_experiment_improved.jl")))
+    joinpath(@__DIR__, "src",
+        "3ME_experiment_improved.jl")))
 isfile(BENCHMARK_SOURCE) ||
     throw(ArgumentError("benchmark source file does not exist: $BENCHMARK_SOURCE"))
 include(BENCHMARK_SOURCE)
@@ -80,9 +80,9 @@ function prepare_run_states(dir, p)
                 ubc!(S, NUM)
                 if capture
                     push!(snapshots, (num=NUM, predictor_input=predictor_input,
-                                      pressure_input=pressure_input,
-                                      boundary_input=boundary_input,
-                                      ncount=ncount))
+                        pressure_input=pressure_input,
+                        boundary_input=boundary_input,
+                        ncount=ncount))
                 end
                 NUM == 1 && (first_ncount = ncount)
             end
@@ -198,7 +198,7 @@ function timed_main(dir)
             elapsed = UInt64(time_ns() - run_start)
             measured_stages = sum(values(timings); init=UInt64(0))
             return (timings=timings, elapsed=elapsed,
-                    other=elapsed - measured_stages, ncounts=ncounts)
+                other=elapsed - measured_stages, ncounts=ncounts)
         end
     end
 end

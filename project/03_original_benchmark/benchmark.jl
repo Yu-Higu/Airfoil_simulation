@@ -85,10 +85,10 @@ try
     result_dir = joinpath(@__DIR__, "results")
     mkpath(result_dir)
     result_path = joinpath(result_dir,
-                           "benchmark-$(Dates.format(now(), "yyyymmdd-HHMMSS")).txt")
+        "benchmark-$(Dates.format(now(), "yyyymmdd-HHMMSS")).txt")
     timed_dir = make_workdir()
     println("Settings: ", p.IG, " x ", p.JG, ", RE=", p.RE, ", DEG=", p.DEG,
-            ", NC=", p.NC, ", NG=", p.NG, ", DT=", p.DT)
+        ", NC=", p.NC, ", NG=", p.NG, ", DT=", p.DT)
     println("Benchmarking every stage for approximately ", seconds, " seconds each...")
     results = run(suite; seconds=seconds, evals=1)
     sequential_timing = timed_main(timed_dir)
@@ -98,9 +98,9 @@ try
         println(io, "Date: ", now())
         println(io, "Source: ", BENCHMARK_SOURCE)
         println(io, "Julia: ", VERSION, "; CPU: ", Sys.CPU_NAME,
-                "; threads: ", Threads.nthreads())
+            "; threads: ", Threads.nthreads())
         println(io, "Conditions: IG=", p.IG, ", JG=", p.JG, ", RE=", p.RE,
-                ", DEG=", p.DEG, ", DT=", p.DT, ", NC=", p.NC, ", NG=", p.NG)
+            ", DEG=", p.DEG, ", DT=", p.DT, ", NC=", p.NC, ", NG=", p.NG)
         println(io, "BenchmarkTools seconds per target: ", seconds)
         println(io, "Each mutating sample uses a fresh deepcopy of its fixed stage input.")
         println(io, "All output targets use temporary directories; setup/cleanup is excluded.")
@@ -113,7 +113,7 @@ try
         println(io, "\n=== Machine-readable timing metrics ===")
         for (name, trial) in results
             println(io, "METRIC\tbenchmark\t", name, "\t",
-                    BenchmarkTools.median(trial).time)
+                BenchmarkTools.median(trial).time)
         end
         println(io, "\nMeasured SOR iteration counts in the full simulation:")
         println(io, "First step: ", first_ncount)
@@ -125,19 +125,19 @@ try
         println(io, "Complete run: ", round(sequential_timing.elapsed / 1e9; digits=6), " s")
         for (name, ns) in sort(collect(sequential_timing.timings); by=last, rev=true)
             println(io, rpad(name, 44), " ",
-                    round(ns / 1e9; digits=6), " s  ",
-                    round(100 * ns / sequential_timing.elapsed; digits=1), "%")
+                round(ns / 1e9; digits=6), " s  ",
+                round(100 * ns / sequential_timing.elapsed; digits=1), "%")
         end
         println(io, rpad("Time-series, logging, and uninstrumented work", 44), " ",
-                round(sequential_timing.other / 1e9; digits=6), " s  ",
-                round(100 * sequential_timing.other / sequential_timing.elapsed; digits=1), "%")
+            round(sequential_timing.other / 1e9; digits=6), " s  ",
+            round(100 * sequential_timing.other / sequential_timing.elapsed; digits=1), "%")
         println(io, "\n=== SOR iteration counts from the exact configured run ===")
         println(io, "First step: ", first_ncount)
         for snapshot in snapshots
             println(io, "Step ", snapshot.num, ": ", snapshot.ncount)
         end
         println(io, "Sequential timing run counts: min=", minimum(sequential_timing.ncounts),
-                ", max=", maximum(sequential_timing.ncounts))
+            ", max=", maximum(sequential_timing.ncounts))
         println(io, "\n=== Machine-readable sequential metrics ===")
         println(io, "METRIC\tsequential\tComplete run\t", sequential_timing.elapsed)
         for (name, ns) in sequential_timing.timings
@@ -148,22 +148,22 @@ try
 
     println("\n=== Median stage time / memory (sorted by time) ===")
     ordered = sort(collect(results); by=entry -> BenchmarkTools.median(last(entry)).time,
-                   rev=true)
+        rev=true)
     for (name, trial) in ordered
         estimate = BenchmarkTools.median(trial)
         println(rpad(name, 52), " ",
-                lpad(string(round(estimate.time / 1e6; digits=3)), 10), " ms  ",
-                estimate.memory, " bytes / ", estimate.allocs, " allocs")
+            lpad(string(round(estimate.time / 1e6; digits=3)), 10), " ms  ",
+            estimate.memory, " bytes / ", estimate.allocs, " allocs")
     end
     println("\n=== Sequential stage-time shares ===")
     for (name, ns) in sort(collect(sequential_timing.timings); by=last, rev=true)
         println(rpad(name, 44), " ",
-                lpad(string(round(ns / 1e9; digits=4)), 9), " s  ",
-                round(100 * ns / sequential_timing.elapsed; digits=1), "%")
+            lpad(string(round(ns / 1e9; digits=4)), 9), " s  ",
+            round(100 * ns / sequential_timing.elapsed; digits=1), "%")
     end
     println(rpad("Time-series, logging, and uninstrumented work", 44), " ",
-            lpad(string(round(sequential_timing.other / 1e9; digits=4)), 9), " s  ",
-            round(100 * sequential_timing.other / sequential_timing.elapsed; digits=1), "%")
+        lpad(string(round(sequential_timing.other / 1e9; digits=4)), 9), " s  ",
+        round(100 * sequential_timing.other / sequential_timing.elapsed; digits=1), "%")
     println("Sequential full run: ", round(sequential_timing.elapsed / 1e9; digits=4), " s")
     println("\n=== SOR iteration counts from the exact configured run ===")
     println("First step: ", first_ncount)

@@ -22,21 +22,21 @@ try
     result_dir = joinpath(@__DIR__, "results")
     mkpath(result_dir)
     result_path = joinpath(result_dir,
-                           "profile-$(Dates.format(now(), "yyyymmdd-HHMMSS")).txt")
+        "profile-$(Dates.format(now(), "yyyymmdd-HHMMSS")).txt")
 
     open(result_path, "w") do io
         println(io, "Airfoil simulation profile using project/01 setting.dat")
         println(io, "Date: ", now())
         println(io, "Julia: ", VERSION, "; CPU: ", Sys.CPU_NAME,
-                "; threads: ", Threads.nthreads())
+            "; threads: ", Threads.nthreads())
         println(io, "Conditions: IG=", p.IG, ", JG=", p.JG, ", RE=", p.RE,
-                ", DEG=", p.DEG, ", DT=", p.DT, ", NC=", p.NC, ", NG=", p.NG)
+            ", DEG=", p.DEG, ", DT=", p.DT, ", NC=", p.NC, ", NG=", p.NG)
         println(io, "Complete-run repetitions: ", repeats)
         println(io, "Allocation sample rate: ", allocation_sample_rate)
 
         println(io, "\n=== @code_warntype ===")
         for f in (read_setting, allocate_sim, calbeta!, fs0!, fs1!, fs2!, ubc!,
-                  write_puv, output, seedout, seedin!)
+            write_puv, output, seedout, seedin!)
             println(io, "\n--- ", f, " ---")
             argtypes = f === read_setting ? (String,) :
                        f === allocate_sim ? (typeof(p),) :

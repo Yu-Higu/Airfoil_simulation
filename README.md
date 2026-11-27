@@ -12,7 +12,7 @@
 - **時間積分スキーム**:
   - 初回ステップ: オイラー陽解法 (`fs0!`)
   - 2ステップ目以降: アダムス・バシュフォース法 (`fs1!`)
-- **圧力ポアソン方程式ソルバー**: 赤黒SOR法 (`sor_row`, `fs2!`)
+- **圧力ポアソン方程式ソルバー**: 幾何マルチグリッド法。各レベルの平滑化に赤黒SOR行カーネル (`sor_row`) を使用
 - **マルチスレッド並列化**: `Polyester.jl` の `@batch` による軽量スレッド並列化と `@fastmath` 最適化
 - **Julia パッケージおよびスクリプト両対応**:
   - パッケージモジュール `AirfoilSimulation` として呼び出し可能
@@ -101,7 +101,28 @@ julia --project=. test/runtests.jl
 
 ```sh
 # src/AirfoilSimulation.jl の性能を計測・既存基準と比較
-julia --project=project/03_original_benchmark project/03_original_benchmark/benchmark.jl \
-  --source=src/AirfoilSimulation.jl \
-  --name="StandardArray_Polyester"
+JULIA_NUM_THREADS=16 BENCHMARK_SECONDS=5 taskset -c 0-15 \
+  /home/yuya_higuchi/.juliaup/bin/julia \
+  --project=project/03_original_benchmark \
+  project/03_original_benchmark/benchmark.jl \
+  --source src/AirfoilSimulation.jl \
+  --name HOGEHOGE
 ```
+
+### マルチグリッド法の比較評価
+
+このベンチマークでマルチグリッド候補の計算時間とサイクル数を計測できます。人手で評価を開始する際は、既存レポートを上書きしない名前を指定してください。
+
+```sh
+JULIA_NUM_THREADS=16 BENCHMARK_SECONDS=5 \
+  julia --project=project/03_original_benchmark \
+  project/03_original_benchmark/benchmark.jl \
+  --source=src/AirfoilSimulation.jl \
+  --name="multigrid_trial"
+```
+
+比較時は過去の保存済み SOR 計測とスレッド数、ベンチマーク秒数、設定を揃えてください。各レベルの赤黒更新には、従来の最適化済み `sor_row` と `@batch` を使います。
+
+現在の `runtests.jl` は設定読み込み、配列、メッシュ、有限値、および `fs2!` のマルチグリッドサイクル数が正であることを確認します。圧力・速度場の誤差比較は含まず、ベンチマークは保存済みSORレポートと全体時間・圧力解法時間を比較します。
+
+長時間のテスト・完全シミュレーション・ベンチマークは自動では実行しません。コード変更後に人手で上記評価を行い、そのログを共有すれば、数値差と性能差を確認して次の修正に進めます。

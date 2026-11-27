@@ -1,0 +1,212 @@
+Airfoil simulation benchmark comparison
+Date: 2026-11-21T23:31:37.672
+Run name: MultiGrid_01_16T
+Candidate source: /home/yuya_higuchi/dev/Airfoil_simulation/src/AirfoilSimulation.jl
+Saved baseline report: /home/yuya_higuchi/dev/Airfoil_simulation/project/03_original_benchmark/results/baseline/benchmark.txt
+Candidate report: /home/yuya_higuchi/dev/Airfoil_simulation/project/03_original_benchmark/results/MultiGrid_01_16T/benchmark.txt
+
+Positive change percentages indicate the candidate is slower.
+
+=== Candidate versus saved baseline ===
+Report: /home/yuya_higuchi/dev/Airfoil_simulation/project/03_original_benchmark/results/baseline/benchmark.txt
+Julia: 1.13.0; CPU: raptorlake; threads: 1
+Conditions: IG=384, JG=144, RE=500.0, DEG=20.0, DT=0.0025, NC=200, NG=5
+Measurement                                                Candidate      Compared      Change
+01 Read setting.dat                                         0.006 ms      0.006 ms       -0.9%
+02 Allocate simulation arrays                               0.506 ms      0.526 ms       -3.7%
+03 Mesh and airfoil: calbeta!                               0.568 ms      0.598 ms       -5.0%
+04 Initial boundaries and diagnostics: ubc! core            0.239 ms      0.237 ms        1.0%
+05 First velocity predictor: fs0!                            0.17 ms       1.54 ms      -89.0%
+07a Later velocity predictor: fs1! at NUM=2                 0.135 ms      1.486 ms      -90.9%
+07b Later velocity predictor: fs1! at NUM=100               0.137 ms      1.489 ms      -90.8%
+07c Later velocity predictor: fs1! at NUM=200               0.136 ms      1.484 ms      -90.8%
+09a Later boundaries and diagnostics: ubc! at NUM=2         0.232 ms      0.228 ms        1.6%
+09b Later boundaries and diagnostics: ubc! at NUM=100       0.234 ms      0.228 ms        2.3%
+09c Later boundaries and diagnostics: ubc! at NUM=200       0.232 ms      0.244 ms       -5.1%
+10 Periodic boundaries plus field output                  124.924 ms    136.582 ms       -8.5%
+11 Field output: write_puv                                129.238 ms    137.026 ms       -5.7%
+12 Summary output: output.dat                               0.854 ms      0.858 ms       -0.4%
+13 Restart output: seedout                                 30.812 ms     39.027 ms      -21.1%
+14 Restart input: seedin! (not called by main)             63.534 ms     61.486 ms        3.3%
+15 Complete run: main()                                 11574.747 ms 318257.795 ms      -96.4%
+sequential / Allocate arrays                                0.455 ms      0.409 ms       11.2%
+sequential / Complete run                               11687.413 ms 317040.201 ms      -96.3%
+sequential / Create TEXTDATA directory                      0.021 ms      0.029 ms      -30.0%
+sequential / First predictor: fs0!                          3.671 ms      1.643 ms      123.4%
+sequential / Initial UBC + field output                   108.574 ms     95.304 ms       13.9%
+sequential / Later predictor: fs1!                        156.131 ms    315.396 ms      -50.5%
+sequential / Mesh generation: calbeta!                      0.604 ms      0.638 ms       -5.3%
+sequential / Other                                          2.053 ms      3.254 ms      -36.9%
+sequential / Pressure solve: fs2!                        4770.111 ms 310720.056 ms      -98.5%
+sequential / Read setting.dat                               0.033 ms      0.033 ms       -0.0%
+sequential / Restart output: seedout                       27.793 ms      27.01 ms        2.9%
+sequential / Step UBC + periodic field output            6493.646 ms   5738.781 ms       13.2%
+sequential / Summary output: output                       124.323 ms    137.647 ms       -9.7%
+
+=== Candidate versus historical run: 20261115_213748_28thread/benchmark-20261115-213348.txt ===
+Report: /home/yuya_higuchi/dev/Airfoil_simulation/project/03_original_benchmark/results/20261115_213748_28thread/benchmark-20261115-213348.txt
+Julia: 1.13.0; CPU: raptorlake; threads: 28
+Conditions: IG=384, JG=144, RE=500.0, DEG=20.0, DT=0.0025, NC=50, NG=5
+Measurement                                                Candidate      Compared      Change
+01 Read setting.dat                                         0.006 ms      0.007 ms      -14.4%
+02 Allocate simulation arrays                               0.506 ms      0.556 ms       -8.9%
+03 Mesh and airfoil: calbeta!                               0.568 ms      0.701 ms      -19.0%
+04 Initial boundaries and diagnostics: ubc! core            0.239 ms      0.258 ms       -7.3%
+05 First velocity predictor: fs0!                            0.17 ms      0.659 ms      -74.2%
+07a Later velocity predictor: fs1! at NUM=2                 0.135 ms      0.649 ms      -79.3%
+09a Later boundaries and diagnostics: ubc! at NUM=2         0.232 ms      0.252 ms       -7.9%
+10 Periodic boundaries plus field output                  124.924 ms    150.821 ms      -17.2%
+11 Field output: write_puv                                129.238 ms    145.374 ms      -11.1%
+12 Summary output: output.dat                               0.854 ms      0.961 ms      -11.1%
+13 Restart output: seedout                                 30.812 ms     38.673 ms      -20.3%
+14 Restart input: seedin! (not called by main)             63.534 ms     71.188 ms      -10.8%
+15 Complete run: main()                                 11574.747 ms    38153.0 ms      -69.7%
+sequential / Complete run                               11687.413 ms  40620.309 ms      -71.2%
+
+=== Candidate versus historical run: 20261116_000701_1thread/benchmark-20261116-000701.txt ===
+Report: /home/yuya_higuchi/dev/Airfoil_simulation/project/03_original_benchmark/results/20261116_000701_1thread/benchmark-20261116-000701.txt
+Julia: 1.13.0; CPU: raptorlake; threads: 1
+Conditions: IG=384, JG=144, RE=500.0, DEG=20.0, DT=0.0025, NC=50, NG=5
+Measurement                                                Candidate      Compared      Change
+01 Read setting.dat                                         0.006 ms      0.006 ms        1.8%
+02 Allocate simulation arrays                               0.506 ms      0.478 ms        5.9%
+03 Mesh and airfoil: calbeta!                               0.568 ms      0.561 ms        1.3%
+04 Initial boundaries and diagnostics: ubc! core            0.239 ms      0.214 ms       11.7%
+05 First velocity predictor: fs0!                            0.17 ms      1.393 ms      -87.8%
+07a Later velocity predictor: fs1! at NUM=2                 0.135 ms      1.381 ms      -90.3%
+09a Later boundaries and diagnostics: ubc! at NUM=2         0.232 ms      0.208 ms       11.3%
+10 Periodic boundaries plus field output                  124.924 ms    128.806 ms       -3.0%
+11 Field output: write_puv                                129.238 ms    128.812 ms        0.3%
+12 Summary output: output.dat                               0.854 ms      0.824 ms        3.7%
+13 Restart output: seedout                                 30.812 ms     37.387 ms      -17.6%
+14 Restart input: seedin! (not called by main)             63.534 ms     60.395 ms        5.2%
+15 Complete run: main()                                 11574.747 ms    48318.0 ms      -76.0%
+sequential / Complete run                               11687.413 ms  47838.357 ms      -75.6%
+
+=== Candidate versus historical run: 20261116_002846_16thread_P_only/benchmark-20261116-002846.txt ===
+Report: /home/yuya_higuchi/dev/Airfoil_simulation/project/03_original_benchmark/results/20261116_002846_16thread_P_only/benchmark-20261116-002846.txt
+Julia: 1.13.0; CPU: raptorlake; threads: 16
+Conditions: IG=384, JG=144, RE=500.0, DEG=20.0, DT=0.0025, NC=50, NG=5
+Measurement                                                Candidate      Compared      Change
+01 Read setting.dat                                         0.006 ms      0.006 ms        0.4%
+02 Allocate simulation arrays                               0.506 ms      0.478 ms        5.9%
+03 Mesh and airfoil: calbeta!                               0.568 ms      0.583 ms       -2.5%
+04 Initial boundaries and diagnostics: ubc! core            0.239 ms      0.231 ms        3.8%
+05 First velocity predictor: fs0!                            0.17 ms      0.455 ms      -62.7%
+07a Later velocity predictor: fs1! at NUM=2                 0.135 ms      0.477 ms      -71.8%
+09a Later boundaries and diagnostics: ubc! at NUM=2         0.232 ms      0.228 ms        1.6%
+10 Periodic boundaries plus field output                  124.924 ms    127.537 ms       -2.0%
+11 Field output: write_puv                                129.238 ms     127.35 ms        1.5%
+12 Summary output: output.dat                               0.854 ms      0.859 ms       -0.5%
+13 Restart output: seedout                                 30.812 ms      32.41 ms       -4.9%
+14 Restart input: seedin! (not called by main)             63.534 ms     62.479 ms        1.7%
+15 Complete run: main()                                 11574.747 ms    22088.0 ms      -47.6%
+sequential / Complete run                               11687.413 ms  21966.248 ms      -46.8%
+
+=== Candidate versus historical run: adopting_julialike_syntax/benchmark.txt ===
+Report: /home/yuya_higuchi/dev/Airfoil_simulation/project/03_original_benchmark/results/adopting_julialike_syntax/benchmark.txt
+Julia: 1.13.0; CPU: raptorlake; threads: 1
+Conditions: IG=384, JG=144, RE=500.0, DEG=20.0, DT=0.0025, NC=200, NG=5
+Measurement                                                Candidate      Compared      Change
+01 Read setting.dat                                         0.006 ms      0.006 ms        0.1%
+02 Allocate simulation arrays                               0.506 ms      0.595 ms      -14.9%
+03 Mesh and airfoil: calbeta!                               0.568 ms      0.607 ms       -6.3%
+04 Initial boundaries and diagnostics: ubc! core            0.239 ms      0.236 ms        1.5%
+05 First velocity predictor: fs0!                            0.17 ms      1.531 ms      -88.9%
+07a Later velocity predictor: fs1! at NUM=2                 0.135 ms      1.487 ms      -90.9%
+07b Later velocity predictor: fs1! at NUM=100               0.137 ms       1.49 ms      -90.8%
+07c Later velocity predictor: fs1! at NUM=200               0.136 ms      1.485 ms      -90.8%
+09a Later boundaries and diagnostics: ubc! at NUM=2         0.232 ms       0.23 ms        1.0%
+09b Later boundaries and diagnostics: ubc! at NUM=100       0.234 ms      0.229 ms        1.9%
+09c Later boundaries and diagnostics: ubc! at NUM=200       0.232 ms      0.231 ms        0.5%
+10 Periodic boundaries plus field output                  124.924 ms    133.151 ms       -6.2%
+11 Field output: write_puv                                129.238 ms    133.802 ms       -3.4%
+12 Summary output: output.dat                               0.854 ms      0.868 ms       -1.5%
+13 Restart output: seedout                                 30.812 ms      40.43 ms      -23.8%
+14 Restart input: seedin! (not called by main)             63.534 ms     61.351 ms        3.6%
+15 Complete run: main()                                 11574.747 ms 130868.698 ms      -91.2%
+sequential / Allocate arrays                                0.455 ms      0.525 ms      -13.5%
+sequential / Complete run                               11687.413 ms 129755.678 ms      -91.0%
+sequential / Create TEXTDATA directory                      0.021 ms      0.021 ms       -2.2%
+sequential / First predictor: fs0!                          3.671 ms      1.579 ms      132.6%
+sequential / Initial UBC + field output                   108.574 ms     126.85 ms      -14.4%
+sequential / Later predictor: fs1!                        156.131 ms    321.293 ms      -51.4%
+sequential / Mesh generation: calbeta!                      0.604 ms       0.69 ms      -12.5%
+sequential / Other                                          2.053 ms      3.083 ms      -33.4%
+sequential / Pressure solve: fs2!                        4770.111 ms  123553.55 ms      -96.1%
+sequential / Read setting.dat                               0.033 ms      0.035 ms       -6.2%
+sequential / Restart output: seedout                       27.793 ms     25.465 ms        9.1%
+sequential / Step UBC + periodic field output            6493.646 ms   5587.476 ms       16.2%
+sequential / Summary output: output                       124.323 ms    135.112 ms       -8.0%
+
+=== Candidate versus historical run: StandardArray_Polyester/benchmark.txt ===
+Report: /home/yuya_higuchi/dev/Airfoil_simulation/project/03_original_benchmark/results/StandardArray_Polyester/benchmark.txt
+Julia: 1.13.0; CPU: raptorlake; threads: 1
+Conditions: IG=384, JG=144, RE=500.0, DEG=20.0, DT=0.0025, NC=200, NG=5
+Measurement                                                Candidate      Compared      Change
+01 Read setting.dat                                         0.006 ms      0.006 ms        2.4%
+02 Allocate simulation arrays                               0.506 ms      0.512 ms       -1.2%
+03 Mesh and airfoil: calbeta!                               0.568 ms      0.546 ms        4.1%
+04 Initial boundaries and diagnostics: ubc! core            0.239 ms      0.225 ms        6.2%
+05 First velocity predictor: fs0!                            0.17 ms      0.704 ms      -75.9%
+07a Later velocity predictor: fs1! at NUM=2                 0.135 ms      0.616 ms      -78.2%
+07b Later velocity predictor: fs1! at NUM=100               0.137 ms      0.615 ms      -77.8%
+07c Later velocity predictor: fs1! at NUM=200               0.136 ms      0.619 ms      -78.1%
+09a Later boundaries and diagnostics: ubc! at NUM=2         0.232 ms      0.232 ms       -0.1%
+09b Later boundaries and diagnostics: ubc! at NUM=100       0.234 ms       0.23 ms        1.7%
+09c Later boundaries and diagnostics: ubc! at NUM=200       0.232 ms      0.225 ms        3.1%
+10 Periodic boundaries plus field output                  124.924 ms    125.549 ms       -0.5%
+11 Field output: write_puv                                129.238 ms    125.672 ms        2.8%
+12 Summary output: output.dat                               0.854 ms       0.82 ms        4.2%
+13 Restart output: seedout                                 30.812 ms       37.3 ms      -17.4%
+14 Restart input: seedin! (not called by main)             63.534 ms     59.658 ms        6.5%
+15 Complete run: main()                                 11574.747 ms 110690.936 ms      -89.5%
+sequential / Allocate arrays                                0.455 ms      0.474 ms       -4.1%
+sequential / Complete run                               11687.413 ms 112250.031 ms      -89.6%
+sequential / Create TEXTDATA directory                      0.021 ms      0.021 ms       -2.4%
+sequential / First predictor: fs0!                          3.671 ms      0.727 ms      405.1%
+sequential / Initial UBC + field output                   108.574 ms     92.825 ms       17.0%
+sequential / Later predictor: fs1!                        156.131 ms    128.983 ms       21.0%
+sequential / Mesh generation: calbeta!                      0.604 ms      0.632 ms       -4.5%
+sequential / Other                                          2.053 ms      3.262 ms      -37.1%
+sequential / Pressure solve: fs2!                        4770.111 ms 106576.757 ms      -95.5%
+sequential / Read setting.dat                               0.033 ms      0.032 ms        1.0%
+sequential / Restart output: seedout                       27.793 ms     23.162 ms       20.0%
+sequential / Step UBC + periodic field output            6493.646 ms   5291.779 ms       22.7%
+sequential / Summary output: output                       124.323 ms    131.377 ms       -5.4%
+
+=== Candidate versus historical run: Abolish_OffsetArray_16T/benchmark.txt ===
+Report: /home/yuya_higuchi/dev/Airfoil_simulation/project/03_original_benchmark/results/Abolish_OffsetArray_16T/benchmark.txt
+Julia: 1.13.0; CPU: raptorlake; threads: 16
+Conditions: IG=384, JG=144, RE=500.0, DEG=20.0, DT=0.0025, NC=200, NG=5
+Measurement                                                Candidate      Compared      Change
+01 Read setting.dat                                         0.006 ms      0.006 ms       -0.5%
+02 Allocate simulation arrays                               0.506 ms      0.506 ms        0.1%
+03 Mesh and airfoil: calbeta!                               0.568 ms      0.575 ms       -1.3%
+04 Initial boundaries and diagnostics: ubc! core            0.239 ms      0.231 ms        3.5%
+05 First velocity predictor: fs0!                            0.17 ms      0.174 ms       -2.2%
+07a Later velocity predictor: fs1! at NUM=2                 0.135 ms       0.14 ms       -4.1%
+07b Later velocity predictor: fs1! at NUM=100               0.137 ms      0.136 ms        0.5%
+07c Later velocity predictor: fs1! at NUM=200               0.136 ms      0.135 ms        0.3%
+09a Later boundaries and diagnostics: ubc! at NUM=2         0.232 ms      0.237 ms       -1.9%
+09b Later boundaries and diagnostics: ubc! at NUM=100       0.234 ms      0.237 ms       -1.4%
+09c Later boundaries and diagnostics: ubc! at NUM=200       0.232 ms      0.234 ms       -1.0%
+10 Periodic boundaries plus field output                  124.924 ms     125.08 ms       -0.1%
+11 Field output: write_puv                                129.238 ms    125.726 ms        2.8%
+12 Summary output: output.dat                               0.854 ms      0.863 ms       -1.0%
+13 Restart output: seedout                                 30.812 ms     32.862 ms       -6.2%
+14 Restart input: seedin! (not called by main)             63.534 ms     60.512 ms        5.0%
+15 Complete run: main()                                 11574.747 ms   43234.32 ms      -73.2%
+sequential / Allocate arrays                                0.455 ms      0.411 ms       10.6%
+sequential / Complete run                               11687.413 ms  43958.319 ms      -73.4%
+sequential / Create TEXTDATA directory                      0.021 ms      0.021 ms       -1.5%
+sequential / First predictor: fs0!                          3.671 ms      1.645 ms      123.2%
+sequential / Initial UBC + field output                   108.574 ms    115.583 ms       -6.1%
+sequential / Later predictor: fs1!                        156.131 ms    195.816 ms      -20.3%
+sequential / Mesh generation: calbeta!                      0.604 ms      0.597 ms        1.2%
+sequential / Other                                          2.053 ms       3.27 ms      -37.2%
+sequential / Pressure solve: fs2!                        4770.111 ms  36580.172 ms      -87.0%
+sequential / Read setting.dat                               0.033 ms      0.033 ms        0.2%
+sequential / Restart output: seedout                       27.793 ms     27.863 ms       -0.3%
+sequential / Step UBC + periodic field output            6493.646 ms   6903.738 ms       -5.9%
+sequential / Summary output: output                       124.323 mbs    129.171 ms       -3.8%

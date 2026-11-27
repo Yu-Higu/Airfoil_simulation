@@ -48,7 +48,7 @@ try
     suite["04 Initial boundaries and diagnostics: ubc! core"] =
         state_benchmark(bench_ubc_initial!, initial_ubc_state)
     suite["05 First velocity predictor: fs0!"] = state_benchmark(fs0!, fs0_input_state)
-    suite["06 First pressure solve: fs2! (SOR iterations=$(first_ncount))"] =
+    suite["06 First pressure solve: fs2! (multigrid cycles=$(first_ncount))"] =
         state_benchmark(fs2!, first_state)
     suite["07a Later velocity predictor: fs1! at NUM=2"] =
         state_benchmark(fs1!, first_snapshot.predictor_input)
@@ -56,11 +56,11 @@ try
         state_benchmark(fs1!, middle_snapshot.predictor_input)
     suite["07c Later velocity predictor: fs1! at NUM=$(final_snapshot.num)"] =
         state_benchmark(fs1!, final_snapshot.predictor_input)
-    suite["08a Later pressure solve: fs2! at NUM=2 (SOR iterations=$(first_snapshot.ncount))"] =
+    suite["08a Later pressure solve: fs2! at NUM=2 (multigrid cycles=$(first_snapshot.ncount))"] =
         state_benchmark(fs2!, first_snapshot.pressure_input)
-    suite["08b Later pressure solve: fs2! at NUM=$(middle_snapshot.num) (SOR iterations=$(middle_snapshot.ncount))"] =
+    suite["08b Later pressure solve: fs2! at NUM=$(middle_snapshot.num) (multigrid cycles=$(middle_snapshot.ncount))"] =
         state_benchmark(fs2!, middle_snapshot.pressure_input)
-    suite["08c Later pressure solve: fs2! at NUM=$(final_snapshot.num) (SOR iterations=$(final_snapshot.ncount))"] =
+    suite["08c Later pressure solve: fs2! at NUM=$(final_snapshot.num) (multigrid cycles=$(final_snapshot.ncount))"] =
         state_benchmark(fs2!, final_snapshot.pressure_input)
     suite["09a Later boundaries and diagnostics: ubc! at NUM=2"] =
         state_benchmark(bench_ubc_step!, first_snapshot.boundary_input)
@@ -101,6 +101,7 @@ try
             "; threads: ", Threads.nthreads())
         println(io, "Conditions: IG=", p.IG, ", JG=", p.JG, ", RE=", p.RE,
             ", DEG=", p.DEG, ", DT=", p.DT, ", NC=", p.NC, ", NG=", p.NG)
+        println(io, "Pressure solver: geometric multigrid (red-black SOR smoothing)")
         println(io, "BenchmarkTools seconds per target: ", seconds)
         println(io, "Each mutating sample uses a fresh deepcopy of its fixed stage input.")
         println(io, "All output targets use temporary directories; setup/cleanup is excluded.")

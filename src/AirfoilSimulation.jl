@@ -19,7 +19,6 @@ std_oa(::Type{T}, dims...) where {T} = zeros(T, dims...)
 
 # Fortran Ew.d edit descriptor
 const EFMT = Dict(d => Printf.Format("%." * string(d - 1) * "e") for d in 1:12)
-
 function fE(x::Real, w::Int, d::Int)
     xf = Float64(x)
     if !isfinite(xf)
@@ -484,12 +483,149 @@ function sor_row(phi, d_w, d_e, d_s, d_n, rhs, pdphi, omg, ig, j, color)
     return m
 end
 
+# Multigrid work arrays use the same shifted layout as PHI, so every level can
+# reuse the optimized red-black SOR row kernel above.
+function mg_boundary!(v, nx, ny)
+    @inbounds begin
+        for i in 1:nx
+            v[i+5, 3] = v[i+5, 4]
+            v[i+5, ny+4] = v[i+5, ny+3]
+        end
+        for j in 1:ny
+            v[5, j+3] = v[6, j+3]
+            v[nx+6, j+3] = v[nx+5, j+3]
+        end
+    end
+    return v
+end
+
+function mg_smooth!(L, sweeps, omega)
+    nx, ny = L.nx, L.ny
+    v, b = L.v, L.b
+    for _ in 1:sweeps, color in 0:1
+        if nx * ny >= 4096
+            @batch for j in 1:ny
+                @inbounds L.rowmax[j] = sor_row(v, L.wx, L.ex, L.sy, L.nyc,
+                    b, L.pdphi, omega, nx, j, color)
+            end
+        else
+            @inbounds for j in 1:ny
+                sor_row(v, L.wx, L.ex, L.sy, L.nyc, b, L.pdphi, omega, nx, j, color)
+            end
+        end
+        mg_boundary!(v, nx, ny)
+    end
+    return v
+end
+
+function mg_residual!(r, L)
+    nx, ny = L.nx, L.ny
+    v, b = L.v, L.b
+    wx, ex, sy, nyc = L.wx, L.ex, L.sy, L.nyc
+    rmax = 0.0
+    @inbounds for j in 1:ny, i in 1:nx
+        ii, jj = i+5, j+3
+        diag = wx[i+1] + ex[i+1] + sy[j+1] + nyc[j+1]
+        # Residual in the legacy equation convention: sum(c*neighbor)-diag*v=b.
+        ri = b[i,j] - (wx[i+1]*v[ii-1,jj] + ex[i+1]*v[ii+1,jj] +
+            sy[j+1]*v[ii,jj-1] + nyc[j+1]*v[ii,jj+1] - diag*v[ii,jj])
+        r[i,j] = ri
+        rmax = max(rmax, abs(ri) / diag)
+    end
+    return rmax
+end
+
+function mg_vcycle!(levels, level, sweeps, omega)
+    L = levels[level]
+    if level == length(levels)
+        mg_smooth!(L, 16, omega)
+        return
+    end
+    mg_smooth!(L, sweeps, omega)
+    mg_residual!(L.r, L)
+    C = levels[level+1]
+    @inbounds for j in 1:C.ny, i in 1:C.nx
+        # Conservative 2x2 restriction for cell-centered residuals.
+        C.b[i,j] = 0.25 * (L.r[2i-1,2j-1] + L.r[2i,2j-1] + L.r[2i-1,2j] + L.r[2i,2j])
+    end
+    fill!(C.v, 0.0)
+    mg_boundary!(C.v, C.nx, C.ny)
+    mg_vcycle!(levels, level+1, sweeps, omega)
+    @inbounds for j in 1:C.ny, i in 1:C.nx
+        correction = C.v[i+5,j+3]
+        fi, fj = 2i+4, 2j+2
+        L.v[fi,fj] += correction
+        L.v[fi+1,fj] += correction
+        L.v[fi,fj+1] += correction
+        L.v[fi+1,fj+1] += correction
+    end
+    mg_boundary!(L.v, L.nx, L.ny)
+    mg_smooth!(L, sweeps, omega)
+    return
+end
+
+function mg_hierarchy(s, rhs)
+    nx, ny = s.IG, s.JG
+    wx, ex = copy(s.D_W), copy(s.D_E)
+    sy, nyc = copy(s.D_S), copy(s.D_N)
+    pdphi = copy(s.PDPHI)
+    v = copy(s.PHI)
+    mg_boundary!(v, nx, ny)
+    b = copy(rhs)
+    r = zeros(Float64, nx, ny)
+    rowmax = zeros(Float64, ny)
+    first_level = (; nx, ny, wx, ex, sy, nyc, pdphi, v, b, r, rowmax)
+    levels = [first_level]
+    while nx % 2 == 0 && ny % 2 == 0 && nx >= 8 && ny >= 8
+        fine = levels[end]
+        nx ÷= 2
+        ny ÷= 2
+        # Rediscretize the variable-coefficient operator at twice the mesh spacing.
+        wx, ex = zeros(Float64, nx+1), zeros(Float64, nx+1)
+        sy, nyc = zeros(Float64, ny+1), zeros(Float64, ny+1)
+        @inbounds for i in 1:nx
+            wx[i+1] = 0.25 * (fine.wx[2i] + fine.wx[2i+1])
+            ex[i+1] = 0.25 * (fine.ex[2i] + fine.ex[2i+1])
+        end
+        @inbounds for j in 1:ny
+            sy[j+1] = 0.25 * (fine.sy[2j] + fine.sy[2j+1])
+            nyc[j+1] = 0.25 * (fine.nyc[2j] + fine.nyc[2j+1])
+        end
+        wx[1], ex[1], sy[1], nyc[1] = wx[2], ex[2], sy[2], nyc[2]
+        pdphi = zeros(Float64, nx+1, ny+1)
+        @inbounds for j in 1:ny, i in 1:nx
+            pdphi[i+1,j+1] = inv(wx[i+1] + ex[i+1] + sy[j+1] + nyc[j+1])
+        end
+        v = zeros(Float64, nx+9, ny+5)
+        b = zeros(Float64, nx, ny)
+        r = zeros(Float64, nx, ny)
+        rowmax = zeros(Float64, ny)
+        push!(levels, (; nx, ny, wx, ex, sy, nyc, pdphi, v, b, r, rowmax))
+    end
+    return levels
+end
+
+function mg_solve!(s, rhs; tolerance=1.0e-4, max_cycles=500, sweeps=2, omega=1.4)
+    levels = mg_hierarchy(s, rhs)
+    fine = first(levels)
+    residual_max = Inf
+    cycles = 0
+    for cycle in 1:max_cycles
+        mg_vcycle!(levels, 1, sweeps, omega)
+        residual_max = mg_residual!(fine.r, fine)
+        cycles = cycle
+        residual_max < tolerance && break
+    end
+    copyto!(s.PHI, fine.v)
+    return cycles, residual_max
+end
+
 function fs2!(s)
     ig, jg, dt, xl = s.IG, s.JG, s.DT, s.XL
     u, ut, p, phi, x = s.U, s.UT, s.P, s.PHI, s.X
     pdx, pdy, pdxx, pdyy, pdphi = s.PDX, s.PDY, s.PDXX, s.PDYY, s.PDPHI
     d_w, d_e, d_s, d_n = s.D_W, s.D_E, s.D_S, s.D_N
-    rowmax, rhs = s.ROWMAX, s.RHS
+    rhs = s.RHS
 
     igf = 12
 
@@ -518,7 +654,6 @@ function fs2!(s)
     pdt = 1.0 / dt
     omg = 1.4
     eps = Float64(1.0f-4)
-    ncount_final = 50001
 
     @batch for j in 1:jg
         @inbounds @simd for i in 1:ig
@@ -527,32 +662,9 @@ function fs2!(s)
         end
     end
 
-    for nc_it in 1:50000
-        ermax = 0.0
-        for color in 0:1
-            @batch for j in 1:jg
-                @inbounds rowmax[j] = sor_row(phi, d_w, d_e, d_s, d_n, rhs, pdphi, omg, ig, j, color)
-            end
-            ermax_color = maximum(rowmax)
-            if ermax_color > ermax
-                ermax = ermax_color
-            end
-
-            # Boundary conditions for phi (shift X:+5, Y:+3)
-            for i in 1:ig
-                phi[i + 5, 0 + 3] = phi[i + 5, 1 + 3]
-                phi[i + 5, jg + 1 + 3] = phi[i + 5, jg + 3]
-            end
-            for j in 1:jg
-                phi[0 + 5, j + 3] = phi[1 + 5, j + 3]
-                phi[ig + 1 + 5, j + 3] = phi[ig + 5, j + 3]
-            end
-        end
-
-        if ermax < eps
-            ncount_final = nc_it
-            break
-        end
+    ncount_final, residual = mg_solve!(s, rhs; tolerance=eps)
+    if residual >= eps
+        @warn "multigrid pressure solve reached cycle limit" cycles=ncount_final residual
     end
 
     ncount = ncount_final
